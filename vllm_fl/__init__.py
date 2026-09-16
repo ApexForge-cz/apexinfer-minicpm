@@ -57,11 +57,42 @@ def _register_flagcx_connector():
             )
 
 
+def _is_gcu_active() -> bool:
+    """Whether the active device is Enflame/GCU.
+
+    Read off DeviceInfo rather than current_platform: while the platform plugin
+    registers, current_platform is still UnspecifiedPlatform (vendor_name None,
+    device_type ''), so a current_platform gate would silently no-op on GCU.
+    DeviceInfo works at this point -- _init_vendor_device relies on it. It reports
+    the vendor as "enflame" and the device as "gcu"; accept either spelling so a
+    rename on one side cannot silently disable the GCU patches.
+    """
+    from vllm_fl.utils import DeviceInfo
+
+    info = DeviceInfo()
+    return info.vendor_name == "enflame" or getattr(info, "device_type", None) == "gcu"
+
+
 def _patch_flash_attn_import():
-    """Stub vllm.vllm_flash_attn if CUDA flash attention C extensions are missing."""
+    """Alias vendor flash_attn for GCU; stub vllm.vllm_flash_attn otherwise."""
     import sys
     if "vllm.vllm_flash_attn" in sys.modules:
         return
+
+    # Enflame/GCU: alias vendor flash_attn package over vllm.vllm_flash_attn so
+    # version detection resolves to the vendor module. Gated on the active device,
+    # not on torch_gcu merely being installed: this is a global monkey patch, and on
+    # a host where the GCU stack is present but another device is active it would
+    # otherwise hijack FlashAttention for that device. Best-effort: any failure
+    # falls through to the stub.
+    if _is_gcu_active():
+        try:
+            import flash_attn.vllm_flash_attn
+            sys.modules["vllm.vllm_flash_attn"] = flash_attn.vllm_flash_attn
+            return
+        except ImportError:
+            pass  # vendor flash_attn unavailable; fall through to stub
+
     try:
         import vllm.vllm_flash_attn  # noqa: F401
     except ImportError:
@@ -102,12 +133,54 @@ def _init_vendor_device():
         _patch_xpu_get_device()
 
 
+def _patch_rotary_flash_attn_import():
+    """Guard vllm 0.20.2's ungated flash_attn.ops.triton.rotary import.
+
+    Not called from register(): reaching rotary_embedding.common drags in
+    vllm.model_executor.custom_op -> vllm.config, and register() runs while
+    vllm.config is still half-imported (the platform plugin is resolved from
+    vllm.config.compilation). PlatformFL.import_kernels() calls this instead,
+    long after vllm.config is complete.
+    """
+    import contextlib
+    from importlib import import_module
+
+    # The guard exists because that module hard-imports triton_gcu.triton, which only
+    # the GCU stack ships; on any other device the import works unaided, so leave it
+    # alone rather than monkey-patching a vLLM class globally.
+    if not _is_gcu_active():
+        return
+
+    from vllm.model_executor.layers.rotary_embedding.common import ApplyRotaryEmb
+
+    if getattr(ApplyRotaryEmb, "_fl_rotary_import_guarded", False):
+        return
+
+    def _guarded_init(self, enforce_enable=False, is_neox_style=True,
+                      enable_fp32_compute=False):
+        super(ApplyRotaryEmb, self).__init__(enforce_enable=enforce_enable)
+        self.is_neox_style = is_neox_style
+        self.enable_fp32_compute = enable_fp32_compute
+        self.apply_rotary_emb_flash_attn = None
+        # vllm 0.20.2 imports flash_attn.ops.triton.rotary whenever flash_attn
+        # is installed; that module hard-imports triton_gcu.triton (only the
+        # vendor triton side ships it). suppress matches vllm 0.24.0 upstream.
+        with contextlib.suppress(ModuleNotFoundError):
+            self.apply_rotary_emb_flash_attn = import_module(
+                "flash_attn.ops.triton.rotary").apply_rotary
+
+    ApplyRotaryEmb.__init__ = _guarded_init
+    ApplyRotaryEmb._fl_rotary_import_guarded = True
+
+
 def register():
     """Register the FL platform."""
     _init_vendor_device()
 
     _patch_custom_ops()
     _patch_flash_attn_import()
+    # _patch_rotary_flash_attn_import() is deferred to PlatformFL.import_kernels()
+    # -- see its docstring for why it cannot run here.
     _patch_transformers_compat()
 
     # Model-specific platform patches
