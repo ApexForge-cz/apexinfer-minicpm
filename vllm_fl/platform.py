@@ -4,21 +4,21 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
-import os
-from typing import TYPE_CHECKING, TypeVar
-from typing_extensions import ParamSpec
-
-import torch
-
 # Import custom ops and trigger registration on both legacy and stable-ABI
 # vLLM wheels. Keep the attempts independent: official vLLM 0.24 wheels have
 # only the stable-ABI module, so failure of the legacy import must not skip it.
+import contextlib
 import importlib
+import os
+from typing import TYPE_CHECKING, TypeVar
+
+import torch
+from typing_extensions import ParamSpec
+
 for _extension in ("vllm._C", "vllm._C_stable_libtorch"):
-    try:
+    with contextlib.suppress(ImportError, OSError):
+        # Non-CUDA platforms may not ship either extension.
         importlib.import_module(_extension)
-    except (ImportError, OSError):
-        pass  # Non-CUDA platforms may not ship either extension.
 
 from vllm.logger import init_logger
 from vllm.platforms import Platform, PlatformEnum
@@ -60,16 +60,22 @@ class PlatformFL(Platform):
     device_name = get_device_name(vendor_name)
     # cuda_alike (nvidia/metax): device_name = vendor_name (not used in torch.device)
     # non-cuda_alike (iluvatar/ascend): device_name = device_type (used in torch.device)
-    device_name = device_info.vendor_name if (
-        device_info.device_type == "cuda"
-        and device_info.vendor_name not in ("iluvatar", "hygon")
-    ) else device_info.device_type
+    device_name = (
+        device_info.vendor_name
+        if (
+            device_info.device_type == "cuda"
+            and device_info.vendor_name not in ("iluvatar", "hygon")
+        )
+        else device_info.device_type
+    )
     device_type = device_info.device_type
     dispatch_key = device_info.dispatch_key
     torch_device_fn = device_info.torch_device_fn
     ray_device_key: str = "GPU"
     dist_backend: str = (
-        "flagcx" if "FLAGCX_PATH" in os.environ else dist_backend_dict.get(device_name, "nccl")
+        "flagcx"
+        if "FLAGCX_PATH" in os.environ
+        else dist_backend_dict.get(device_name, "nccl")
     )
     # Dispatched per vendor via VENDOR_DEVICE_MAP so a logical device ID can be
     # translated into the ordinal visible to this process. Leaving the
@@ -93,9 +99,8 @@ class PlatformFL(Platform):
         return self.device_type == "cuda" and self.vendor_name == "nvidia"
 
     def is_musa(self) -> bool:
-        if hasattr(torch, 'musa') and torch.musa.is_available():
-            return True
-        return False
+        return hasattr(torch, "musa") and torch.musa.is_available()
+
     @property
     def supported_dtypes(self) -> list[torch.dtype]:
         return [torch.bfloat16, torch.float16, torch.float32]
@@ -133,9 +138,7 @@ class PlatformFL(Platform):
     ### TODO(lms): change pin_memory depend device
     @classmethod
     def is_pin_memory_available(cls):
-        if cls.device_type in ["cuda", "xpu", "npu", "musa"]:
-            return True
-        return False
+        return cls.device_type in ["cuda", "xpu", "npu", "musa"]
 
     @classmethod
     def import_kernels(cls) -> None:
@@ -162,7 +165,10 @@ class PlatformFL(Platform):
 
         if cls.device_type == "musa":
             try:
-                from vllm_fl.dispatch.backends.vendor.musa.patch import apply_musa_patches
+                from vllm_fl.dispatch.backends.vendor.musa.patch import (
+                    apply_musa_patches,
+                )
+
                 apply_musa_patches()
             except Exception as e:
                 logger.warning(f"Failed to apply MUSA patches: {e}")
@@ -186,6 +192,9 @@ class PlatformFL(Platform):
             if cls.device_type == "npu":
                 cache_config.block_size = 128
                 logger.info("Setting kv cache block size to 128 for Ascend NPU.")
+            elif cls.vendor_name == "kunlunxin":
+                cache_config.block_size = 128
+                logger.info("Setting kv cache block size to 128 for Kunlunxin.")
             elif cls.device_type == "musa":
                 cache_config.block_size = 64
                 logger.info("Setting kv cache block size to 64 for MUSA.")
@@ -195,6 +204,20 @@ class PlatformFL(Platform):
             from vllm_fl.dispatch.backends.vendor.ascend.patch import refresh_block_size
 
             refresh_block_size(vllm_config)
+
+        if (
+            cls.vendor_name == "kunlunxin"
+            and vllm_config.speculative_config is not None
+        ):
+            # The native xtorch_ops.causal_conv1d_update kernel has no
+            # num_accepted_tokens support, and the GDN conv stage is on the
+            # critical path of every spec-decode step. Fail at config time
+            # instead of raising NotImplementedError on the first request.
+            raise ValueError(
+                "Speculative decoding is not supported on Kunlunxin: the native "
+                "causal_conv1d_update kernel cannot roll the conv state back to "
+                "the accepted tokens."
+            )
 
         # TODO(lucas): handle this more gracefully
         # Note: model_config may be None during testing
@@ -206,10 +229,10 @@ class PlatformFL(Platform):
             model_config is not None
             and model_config.use_mla
             and cache_config.block_size is not None
+            and cache_config.block_size % 64 != 0
         ):
-            if cache_config.block_size % 64 != 0:
-                cache_config.block_size = 64
-                logger.info("Forcing kv cache block size to 64 for FlagOSMLA backend.")
+            cache_config.block_size = 64
+            logger.info("Forcing kv cache block size to 64 for FlagOSMLA backend.")
 
         # lazy import to avoid circular import
         from vllm.config import CUDAGraphMode
@@ -303,7 +326,9 @@ class PlatformFL(Platform):
         use_mla = attn_selector_config.use_mla
         use_sparse = attn_selector_config.use_sparse
 
-        backend_path = call_op("attention_backend", use_mla=use_mla, use_sparse=use_sparse)
+        backend_path = call_op(
+            "attention_backend", use_mla=use_mla, use_sparse=use_sparse
+        )
 
         logger.info_once(
             "Using attention backend via dispatch (use_mla=%s, use_sparse=%s): %s",
@@ -313,8 +338,9 @@ class PlatformFL(Platform):
             scope="local",
         )
         logger.info(
-            "Using attention backend via dispatch (use_mla=%s): %s"
-            % (use_mla, backend_path)
+            "Using attention backend via dispatch (use_mla=%s): %s",
+            use_mla,
+            backend_path,
         )
         return backend_path
 
@@ -376,9 +402,16 @@ class PlatformFL(Platform):
 
     @classmethod
     def support_static_graph_mode(cls) -> bool:
-        if cls.vendor_name in ["nvidia", "ascend", "metax", "hygon", "mthreads", "iluvatar", "thead"]:
-            return True
-        return False
+        return cls.vendor_name in [
+            "nvidia",
+            "ascend",
+            "metax",
+            "hygon",
+            "mthreads",
+            "iluvatar",
+            "thead",
+            "kunlunxin",
+        ]
 
     @classmethod
     def insert_blocks_to_device(
@@ -415,16 +448,13 @@ class PlatformFL(Platform):
 
     @classmethod
     def use_custom_allreduce(cls) -> bool:
-        if cls.vendor_name == "hygon":
-            return False
-        if cls.dist_backend == "flagcx":
-            return False
-        return True
+        return cls.vendor_name != "hygon" and cls.dist_backend != "flagcx"
 
     @classmethod
     def pre_register_and_update(cls, parser=None) -> None:
         if cls.device_name == "npu":
-            import vllm_fl.dispatch.backends.vendor.ascend
+            # Import for the registration side effect; no name is used here.
+            import vllm_fl.dispatch.backends.vendor.ascend  # noqa: F401
         if cls.vendor_name == "iluvatar":
             # Patches are applied at module import time in iluvatar.py.
             # Also call chained-or patch here explicitly from the main process,
@@ -432,12 +462,11 @@ class PlatformFL(Platform):
             from vllm_fl.dispatch.backends.vendor.iluvatar.iluvatar import (
                 patch_triton_chained_or_for_iluvatar,
             )
+
             patch_triton_chained_or_for_iluvatar()
 
     def supports_fp8(cls) -> bool:
-        if cls.vendor_name == "nvidia":
-            return True
-        return False
+        return cls.vendor_name == "nvidia"
 
     @classmethod
     def get_device_uuid(cls, device_id: int = 0) -> str:
@@ -447,6 +476,7 @@ class PlatformFL(Platform):
             return f"ILUVATAR-{device_id}"
         if cls.device_type == "cuda":
             import pynvml
+
             pynvml.nvmlInit()
             physical_device_id = cls.device_id_to_physical_device_id(device_id)
             handle = pynvml.nvmlDeviceGetHandleByIndex(physical_device_id)
@@ -463,9 +493,7 @@ class PlatformFL(Platform):
 
     @classmethod
     def get_device_total_memory(cls, device_id: int = 0) -> int:
-        return cls.torch_device_fn.get_device_properties(
-            device_id
-        ).total_memory
+        return cls.torch_device_fn.get_device_properties(device_id).total_memory
 
     @classmethod
     def use_custom_op_collectives(cls) -> bool:
@@ -473,8 +501,9 @@ class PlatformFL(Platform):
 
     @classmethod
     def num_compute_units(cls, device_id: int = 0) -> int:
-        return cls.torch_device_fn.get_device_properties(device_id).multi_processor_count
-
+        return cls.torch_device_fn.get_device_properties(
+            device_id
+        ).multi_processor_count
 
     @classmethod
     def get_device_capability(cls, device_id: int = 0) -> DeviceCapability:
@@ -537,15 +566,19 @@ class PlatformFL(Platform):
     def manual_seed_all(cls, seed: int) -> None:
         """Set RNG seed across all devices for the current platform."""
         # torch_ptpu.ptpu doesn't have manual_seed_all, implement it manually
-        if hasattr(cls.torch_device_fn, 'manual_seed_all'):
+        if hasattr(cls.torch_device_fn, "manual_seed_all"):
             cls.torch_device_fn.manual_seed_all(seed)
         else:
             # Fallback for devices without manual_seed_all (e.g., ptpu)
             torch.manual_seed(seed)
-            if hasattr(cls.torch_device_fn, 'device_count') and hasattr(cls.torch_device_fn, '_get_or_create_default_generator'):
+            if hasattr(cls.torch_device_fn, "device_count") and hasattr(
+                cls.torch_device_fn, "_get_or_create_default_generator"
+            ):
                 # Set seed for each device's default generator
                 for device_id in range(cls.torch_device_fn.device_count()):
-                    generator = cls.torch_device_fn._get_or_create_default_generator(device_id)
+                    generator = cls.torch_device_fn._get_or_create_default_generator(
+                        device_id
+                    )
                     generator.manual_seed(seed)
 
     @classmethod
