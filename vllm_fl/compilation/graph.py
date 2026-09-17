@@ -6,7 +6,6 @@
 
 import dataclasses
 import weakref
-from collections import Counter
 from collections.abc import Callable
 from contextlib import ExitStack
 from typing import Any, ClassVar
@@ -34,6 +33,7 @@ logger = init_logger(__name__)
 def weak_ref_tensors(tensor: Any) -> Any:
     try:
         from vllm.utils.torch_utils import weak_ref_tensors
+
         return weak_ref_tensors(tensor)
     except Exception:
         return tensor
@@ -50,6 +50,10 @@ class Graph:
     elif current_platform.device_type == "ptpu":
         graph = torch.ptpu.PTPUGraph
     elif current_platform.device_type == "txda":
+        graph = None
+    elif current_platform.device_type == "mlu":
+        # Cambricon runs eager-only (see PlatformFL.support_static_graph_mode):
+        # torch.mlu.MLUGraph capture OOMs at the model's cudagraph budget.
         graph = None
     else:
         raise NotImplementedError("not support graph")
@@ -89,11 +93,13 @@ class GraphWrapper:
         for instance in list(cls._all_instances):
             instance.clear_graphs()
 
-    def __init__(self,
-                 runnable: Callable,
-                 vllm_config: VllmConfig,
-                 runtime_mode: CUDAGraphMode,
-                 cudagraph_options: GraphOptions | None = None):
+    def __init__(
+        self,
+        runnable: Callable,
+        vllm_config: VllmConfig,
+        runtime_mode: CUDAGraphMode,
+        cudagraph_options: GraphOptions | None = None,
+    ):
         self.runnable = runnable
         self.vllm_config = vllm_config
         self.runtime_mode = runtime_mode
@@ -188,8 +194,7 @@ class GraphWrapper:
                     stack.enter_context(patch("gc.collect", lambda: None))
                     # FL-specific: patch our platform's empty_cache
                     stack.enter_context(
-                        patch("vllm_fl.platform.PlatformFL.empty_cache",
-                              lambda: None)
+                        patch("vllm_fl.platform.PlatformFL.empty_cache", lambda: None)
                     )
 
             if self.graph_pool is not None:
@@ -200,19 +205,19 @@ class GraphWrapper:
             # Sync offloader's copy stream before capture if available.
             try:
                 from vllm.model_executor.offloader.base import get_offloader
+
                 get_offloader().sync_prev_onload()
             except (ImportError, RuntimeError):
                 pass
 
             # FL-specific: use platform-agnostic graph capture
-            with current_platform.torch_device_fn.graph(
-                graph, pool=self.graph_pool
-            ):
+            with current_platform.torch_device_fn.graph(graph, pool=self.graph_pool):
                 # `output` is managed by pytorch's cudagraph pool
                 output = self.runnable(*args, **kwargs)
                 # Join offloader's copy stream after forward if available
                 try:
                     from vllm.model_executor.offloader.base import get_offloader
+
                     get_offloader().join_after_forward()
                 except (ImportError, RuntimeError):
                     pass
@@ -243,6 +248,7 @@ class GraphWrapper:
         # Sync offloader before replay if available
         try:
             from vllm.model_executor.offloader.base import get_offloader
+
             get_offloader().sync_prev_onload()
         except (ImportError, RuntimeError):
             pass

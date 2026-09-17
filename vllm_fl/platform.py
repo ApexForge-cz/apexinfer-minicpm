@@ -49,6 +49,9 @@ dist_backend_dict = {
     "npu": "hccl",
     "cuda": "nccl",
     "musa": "mccl",
+    # Cambricon's CNCL; without the entry the lookup falls back to "nccl",
+    # which torch_mlu's ProcessGroup does not implement.
+    "mlu": "cncl",
 }
 
 
@@ -271,6 +274,17 @@ class PlatformFL(Platform):
                     "to avoid recurrence precision loss in GDN decode."
                 )
 
+        if cls.device_type == "mlu":
+            # vLLM turns on inductor horizontal fusion by default on torch>=2.9.
+            # torch_mlu's benchmark_combo_kernel then compiles and immediately
+            # launches the fused kernel, which the MLU triton driver rejects with
+            # `Triton Error [MLU: 100006]: "Input argument is invalid"`; the
+            # InductorError escapes and takes the EngineCore down at startup.
+            # MLU590 does not gain anything from combo kernels here.
+            compilation_config.inductor_compile_config.update(
+                {"combo_kernels": False, "benchmark_combo_kernel": False}
+            )
+
         if (
             cls.device_type == "musa"
             and compilation_config.cudagraph_mode.has_full_cudagraphs()
@@ -402,6 +416,12 @@ class PlatformFL(Platform):
 
     @classmethod
     def support_static_graph_mode(cls) -> bool:
+        # Cambricon is eager-only: on MLU590 the inductor combo-kernel path
+        # (torch_mlu benchmark_combo_kernel, enabled by default on torch>=2.9)
+        # dies at kernel launch with `Triton Error [MLU: 100006]`, and with
+        # combo kernels off, MLUGraph capture runs past the cudagraph memory
+        # budget (77.08 GiB allocated of 78.86 GiB) at PIECEWISE capture 5/51.
+        # Returning False makes vLLM force cudagraph_mode to NONE.
         return cls.vendor_name in [
             "nvidia",
             "ascend",
@@ -448,7 +468,13 @@ class PlatformFL(Platform):
 
     @classmethod
     def use_custom_allreduce(cls) -> bool:
-        return cls.vendor_name != "hygon" and cls.dist_backend != "flagcx"
+        # vLLM's custom all-reduce is a CUDA IPC kernel; MLU has no counterpart,
+        # and vllm/config/parallel.py turns the feature off for the whole engine
+        # when this returns False (so MLU never enters that path unasked).
+        return (
+            cls.vendor_name not in ("hygon", "cambricon")
+            and cls.dist_backend != "flagcx"
+        )
 
     @classmethod
     def pre_register_and_update(cls, parser=None) -> None:
@@ -464,6 +490,17 @@ class PlatformFL(Platform):
             )
 
             patch_triton_chained_or_for_iluvatar()
+        if cls.vendor_name == "cambricon":
+            # Cambricon 4.4.3's triton 3.2.0+mlu1.7.2 rejects chained boolean
+            # `or` inside @triton.jit bodies (UnsupportedLanguageConstruct,
+            # escapes the autotuner → EngineCore dead → HTTP 500). Rewrite the
+            # affected vllm sources in the main process before Worker
+            # subprocesses start, so Workers import the patched files from disk.
+            from vllm_fl.dispatch.backends.vendor.cambricon.cambricon import (
+                patch_triton_chained_or_for_cambricon,
+            )
+
+            patch_triton_chained_or_for_cambricon()
 
     def supports_fp8(cls) -> bool:
         return cls.vendor_name == "nvidia"
@@ -516,8 +553,10 @@ class PlatformFL(Platform):
         # TODO: For PTPU/Sunrise devices, return None
         if cls.device_type == "ptpu":
             return None
-        # Non-CUDA devices (e.g. txda/tsingmicro) have no CUDA-style capability
-        if cls.device_type == "txda":
+        # Non-CUDA devices (e.g. mlu/txda) have no CUDA-style capability; the
+        # CUDA-alike fallback below would otherwise report a bogus compute
+        # capability that attention-backend selection reads as sm80+.
+        if cls.device_type in ("mlu", "txda"):
             return None
         major, minor = torch.cuda.get_device_capability(device_id)
         return DeviceCapability(major=major, minor=minor)
