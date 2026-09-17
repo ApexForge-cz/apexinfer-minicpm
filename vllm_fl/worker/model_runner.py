@@ -262,6 +262,7 @@ from vllm.v1.worker.utils import (
 
 # FL-specific imports
 from vllm_fl.compilation.graph import GraphWrapper
+from vllm_fl.dispatch import prewarm_cached_ops
 from vllm_fl.dispatch.io_common import managed_inference_mode
 from vllm_fl.dispatch.io_dumper import (
     advance_io_step,
@@ -4941,6 +4942,11 @@ class ModelRunnerFL(
             format_gib(self.model_memory_usage),
             time_after_load - time_before_load,
         )
+
+        # All model modules are loaded now, while compilation and CUDA Graph
+        # capture have not started yet. Resolve CachedOps outside either graph.
+        prewarm_cached_ops()
+
         if not load_dummy_weights:
             prepare_communication_buffer_for_model(self.model)
             # FL: register IO dumper module hooks
@@ -6716,7 +6722,11 @@ class ModelRunnerFL(
                         shape_block_size,
                         kv_cache_spec.num_kv_heads,
                         kv_cache_spec.head_size,
-                        cache_dtype_str=self.cache_config.cache_dtype,
+                        cache_dtype_str=getattr(
+                            kv_cache_spec,
+                            "cache_dtype_str",
+                            self.cache_config.cache_dtype,
+                        ),
                     )
                     dtype = kv_cache_spec.dtype
                     try:
@@ -6823,7 +6833,11 @@ class ModelRunnerFL(
                 kernel_block_sizes[group.kv_cache_group_id],
                 kv_cache_spec.num_kv_heads,
                 kv_cache_spec.head_size,
-                cache_dtype_str=self.cache_config.cache_dtype,
+                cache_dtype_str=getattr(
+                    kv_cache_spec,
+                    "cache_dtype_str",
+                    self.cache_config.cache_dtype,
+                ),
             )
             # block_dim: 0 means (num_blocks, 2, ...); 1 means (2, num_blocks, ...).
             if block_dim == 0:
