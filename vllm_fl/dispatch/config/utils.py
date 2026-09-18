@@ -1,4 +1,3 @@
-
 # Copyright (c) 2026 BAAI. All rights reserved.
 
 """
@@ -32,16 +31,17 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
-from vllm_fl.utils import VENDOR_DEVICE_MAP
+
+from vllm_fl.utils import VENDOR_DEVICE_MAP, get_device_name
 
 # Directory containing config files (config/)
 _CONFIG_DIR = Path(__file__).parent
 
 
-def _get_arch_config_name(platform: str) -> Optional[str]:
+def _get_arch_config_name(platform: str) -> str | None:
     """Return an architecture-specific config name when one is available."""
     if platform != "nvidia":
         return None
@@ -74,19 +74,20 @@ def get_platform_name() -> str:
     """
     try:
         from vllm.platforms import current_platform
+
         return current_platform.vendor_name
     except ImportError:
         pass
 
     # Check environment variable override
-    platform_override = os.environ.get('VLLM_FL_PLATFORM', '').strip().lower()
+    platform_override = os.environ.get("VLLM_FL_PLATFORM", "").strip().lower()
     if platform_override:
         return platform_override
 
-    return 'unknown'
+    return "unknown"
 
 
-def get_config_path(platform: Optional[str] = None) -> Optional[Path]:
+def get_config_path(platform: str | None = None) -> Path | None:
     """
     Get the configuration file path for the specified or detected platform.
 
@@ -105,15 +106,29 @@ def get_config_path(platform: Optional[str] = None) -> Optional[Path]:
         if config_file.exists():
             return config_file
 
-    # Try platform-specific config
+    # Try platform-specific config, keyed on vendor_name.
     config_file = _CONFIG_DIR / f"{platform}.yaml"
     if config_file.exists():
         return config_file
 
+    # Fall back to the device_name alias.  Some vendors ship a config named
+    # after their device family rather than their vendor_name (e.g. enflame's
+    # config is gcu.yaml, mthreads' is musa.yaml).  Without this the config
+    # (op_backends AND flagos_blacklist) silently fails to load.
+    # Guarded by membership because get_device_name raises on a vendor that is
+    # not in the map -- and get_platform_name() can yield names that are not
+    # vendor names ("cuda", "unknown").
+    if platform in VENDOR_DEVICE_MAP:
+        device_name = get_device_name(platform)
+        if device_name != platform:
+            alias_file = _CONFIG_DIR / f"{device_name}.yaml"
+            if alias_file.exists():
+                return alias_file
+
     return None
 
 
-def load_platform_config(platform: Optional[str] = None) -> Optional[dict[str, Any]]:
+def load_platform_config(platform: str | None = None) -> dict[str, Any] | None:
     """
     Load the configuration for the specified or detected platform.
 
@@ -128,14 +143,14 @@ def load_platform_config(platform: Optional[str] = None) -> Optional[dict[str, A
         return None
 
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
         return config if isinstance(config, dict) else None
     except Exception:
         return None
 
 
-def get_per_op_order(config: Optional[dict] = None) -> Optional[dict[str, list[str]]]:
+def get_per_op_order(config: dict | None = None) -> dict[str, list[str]] | None:
     """
     Extract per-op backend order from config.
 
@@ -150,7 +165,7 @@ def get_per_op_order(config: Optional[dict] = None) -> Optional[dict[str, list[s
     if config is None:
         return None
 
-    per_op = config.get('per_op', {})
+    per_op = config.get("per_op", {})
     if not isinstance(per_op, dict):
         return None
 
@@ -164,7 +179,7 @@ def get_per_op_order(config: Optional[dict] = None) -> Optional[dict[str, list[s
     return result if result else None
 
 
-def get_flagos_blacklist(config: Optional[dict] = None) -> Optional[list[str]]:
+def get_flagos_blacklist(config: dict | None = None) -> list[str] | None:
     """
     Extract FlagOS operator blacklist from config.
 
@@ -179,13 +194,13 @@ def get_flagos_blacklist(config: Optional[dict] = None) -> Optional[list[str]]:
     if config is None:
         return None
 
-    blacklist = config.get('flagos_blacklist', [])
+    blacklist = config.get("flagos_blacklist", [])
     if isinstance(blacklist, list):
         return [str(op) for op in blacklist]
     return None
 
 
-def get_oot_blacklist(config: Optional[dict] = None) -> Optional[list[str]]:
+def get_oot_blacklist(config: dict | None = None) -> list[str] | None:
     """
     Extract OOT operator blacklist from config.
 
@@ -200,7 +215,7 @@ def get_oot_blacklist(config: Optional[dict] = None) -> Optional[list[str]]:
     if config is None:
         return None
 
-    blacklist = config.get('oot_blacklist', [])
+    blacklist = config.get("oot_blacklist", [])
     if isinstance(blacklist, list):
         return [str(op) for op in blacklist]
     return None
@@ -220,10 +235,10 @@ def get_effective_config() -> dict[str, Any]:
         Effective configuration dictionary.
     """
     # Check for user-specified config file
-    user_config_path = os.environ.get('VLLM_FL_CONFIG', '').strip()
+    user_config_path = os.environ.get("VLLM_FL_CONFIG", "").strip()
     if user_config_path and os.path.isfile(user_config_path):
         try:
-            with open(user_config_path, 'r', encoding='utf-8') as f:
+            with open(user_config_path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
             if isinstance(config, dict):
                 return config
@@ -237,6 +252,7 @@ def get_effective_config() -> dict[str, Any]:
 
     # Return empty config
     return {}
+
 
 def get_vendor_device_map() -> dict[str, dict[str, str]]:
     """Load vendor mapping from Python config module.
