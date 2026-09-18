@@ -51,6 +51,7 @@ dist_backend_dict = {
     "cuda": "nccl",
     "gcu": "eccl",
     "musa": "mccl",
+    "txda": "tccl",
     "mlu": "cncl",
 }
 
