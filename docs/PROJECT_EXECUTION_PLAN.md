@@ -174,7 +174,7 @@ S0 项目治理与环境准备
 ### S0：项目治理、仓库安全与开发环境合同
 
 - **Issue**：`[S0] 建立项目治理、仓库安全与环境合同`
-- **GitHub Issue**：创建后回填
+- **GitHub Issue**：[#1](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/1)
 - **主负责人**：陈梓弘
 - **协作者**：周邦翔、朱健辉
 - **建议分支**：`chore/s0-project-bootstrap`
@@ -212,7 +212,7 @@ S0 项目治理与环境准备
 ### S1：双平台基线、精度与测量稳定性
 
 - **Issue**：`[S1] 复现 MiniCPM5-2B 双平台性能与精度基线`
-- **GitHub Issue**：创建后回填
+- **GitHub Issue**：[#2](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/2)
 - **主负责人**：周邦翔
 - **最终负责**：陈梓弘
 - **协作者**：朱健辉
@@ -253,7 +253,7 @@ S0 项目治理与环境准备
 ### S2：分层性能剖析与瓶颈地图
 
 - **Issue**：`[S2] 建立 Prefill/Decode 分层瓶颈地图与优化候选清单`
-- **GitHub Issue**：创建后回填
+- **GitHub Issue**：[#3](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/3)
 - **主负责人**：陈梓弘
 - **协作者**：周邦翔
 - **支持**：朱健辉
@@ -292,7 +292,7 @@ S0 项目治理与环境准备
 ### S3：低风险运行时与执行路径优化
 
 - **Issue**：`[S3] 优化运行时热路径与可复用缓冲区`
-- **GitHub Issue**：创建后回填
+- **GitHub Issue**：[#4](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/4)
 - **主负责人**：陈梓弘
 - **测量负责人**：周邦翔
 - **建议分支**：`perf/s3-runtime-hotpath`
@@ -329,7 +329,7 @@ S0 项目治理与环境准备
 ### S4：调度、KV Cache 与图执行协同优化
 
 - **Issue**：`[S4] 优化调度、KV Cache 与图执行协同路径`
-- **GitHub Issue**：创建后回填
+- **GitHub Issue**：[#5](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/5)
 - **主负责人**：陈梓弘
 - **协作者**：周邦翔
 - **建议分支**：`perf/s4-scheduler-kvcache`
@@ -367,7 +367,7 @@ S0 项目治理与环境准备
 ### S5：热点算子、FlagGems 与双平台适配
 
 - **Issue**：`[S5] 基于 profiler 优化热点算子并完成双平台适配`
-- **GitHub Issue**：创建后回填
+- **GitHub Issue**：[#6](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/6)
 - **主负责人**：陈梓弘
 - **协作者**：周邦翔
 - **支持**：朱健辉负责结果对比图，不参与内核实现
@@ -407,7 +407,7 @@ S0 项目治理与环境准备
 ### S6：组合优化、消融、回归与稳定性
 
 - **Issue**：`[S6] 完成双平台组合优化、消融与回归验收`
-- **GitHub Issue**：创建后回填
+- **GitHub Issue**：[#7](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/7)
 - **主负责人**：周邦翔
 - **最终负责**：陈梓弘
 - **协作者**：朱健辉
@@ -441,7 +441,7 @@ S0 项目治理与环境准备
 ### S7：技术报告、README、提交包与复现演练
 
 - **Issue**：`[S7] 完成技术报告、复现说明与最终提交包`
-- **GitHub Issue**：创建后回填
+- **GitHub Issue**：[#8](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/8)
 - **主负责人**：陈梓弘
 - **协作者**：周邦翔、朱健辉
 - **建议分支**：`docs/s7-final-delivery`
@@ -475,14 +475,14 @@ S0 项目治理与环境准备
 
 | 阶段 | Issue 标题 | 主负责人 | 分支 | 优先级 | 状态 |
 |---|---|---|---|---|---|
-| S0 | 建立项目治理、仓库安全与环境合同 | 陈梓弘 | `chore/s0-project-bootstrap` | P0 | 待开始 |
-| S1 | 复现 MiniCPM5-2B 双平台性能与精度基线 | 周邦翔 | `bench/s1-baseline-harness` | P0 | 阻塞于算力/环境 |
-| S2 | 建立 Prefill/Decode 分层瓶颈地图与优化候选清单 | 陈梓弘 | `perf/s2-profile-bottlenecks` | P0 | 阻塞于 S1 |
-| S3 | 优化运行时热路径与可复用缓冲区 | 陈梓弘 | `perf/s3-runtime-hotpath` | P1 | 候选，等待 S2 |
-| S4 | 优化调度、KV Cache 与图执行协同路径 | 陈梓弘 | `perf/s4-scheduler-kvcache` | P1 | 候选，等待 S2 |
-| S5 | 基于 profiler 优化热点算子并完成双平台适配 | 陈梓弘 | `perf/s5-hot-operators` | P1 | 候选，等待 S2 |
-| S6 | 完成双平台组合优化、消融与回归验收 | 周邦翔 | `test/s6-integration-ablation` | P0 | 阻塞于 S3-S5 |
-| S7 | 完成技术报告、复现说明与最终提交包 | 陈梓弘 | `docs/s7-final-delivery` | P0 | 阻塞于 S6 |
+| S0 | [#1](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/1) 建立项目治理、仓库安全与环境合同 | 陈梓弘 | `chore/s0-project-bootstrap` | P0 | 已创建 |
+| S1 | [#2](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/2) 复现 MiniCPM5-2B 双平台性能与精度基线 | 周邦翔 | `bench/s1-baseline-harness` | P0 | 已创建/等待算力 |
+| S2 | [#3](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/3) 建立 Prefill/Decode 分层瓶颈地图与优化候选清单 | 陈梓弘 | `perf/s2-profile-bottlenecks` | P0 | 已创建/阻塞于 S1 |
+| S3 | [#4](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/4) 优化运行时热路径与可复用缓冲区 | 陈梓弘 | `perf/s3-runtime-hotpath` | P1 | 已创建/等待 S2 |
+| S4 | [#5](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/5) 优化调度、KV Cache 与图执行协同路径 | 陈梓弘 | `perf/s4-scheduler-kvcache` | P1 | 已创建/等待 S2 |
+| S5 | [#6](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/6) 基于 profiler 优化热点算子并完成双平台适配 | 陈梓弘 | `perf/s5-hot-operators` | P1 | 已创建/等待 S2 |
+| S6 | [#7](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/7) 完成双平台组合优化、消融与回归验收 | 周邦翔 | `test/s6-integration-ablation` | P0 | 已创建/等待 S3-S5 |
+| S7 | [#8](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/8) 完成技术报告、复现说明与最终提交包 | 陈梓弘 | `docs/s7-final-delivery` | P0 | 已创建/等待 S6 |
 
 ## 9. 实验记录模板
 
