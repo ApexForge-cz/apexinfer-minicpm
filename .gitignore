@@ -4,6 +4,23 @@ build/
 dist/
 vllm_fl/_version.py
 
+# Competition-local assets and secrets
+.env
+.env.*
+*.key
+*.pem
+models/
+datasets/
+benchmark_results/
+profiler_traces/
+*.trace
+*.nsys-rep
+*.sqlite
+
+# Local experiment outputs (commit only curated summaries under docs/results)
+docs/experiments/raw/
+docs/results/raw/
+
 # Coverage
 .coverage
 .coverage.*
