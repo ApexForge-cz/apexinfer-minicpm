@@ -55,7 +55,8 @@
 
 - `flagos-2026-s2`：本项目的默认主分支，也是用户所说的“提交到 main”的实际落点；
 - `upstream/flagos-2026-s2`：官方只读基线；
-- 功能分支：从最新 `origin/flagos-2026-s2` 创建；
+- 每阶段由负责人从最新 `origin/flagos-2026-s2` 创建 `phaseN/integration`，再创建 `phaseN/release-candidate`；
+- 个人任务分支必须从对应 `phaseN/release-candidate` 创建；
 - 禁止在 GitHub `main` 上开发比赛功能，避免脱离赛事指定版本；
 - 禁止 force push、重写共享分支历史或将个人材料提交到公开仓库。
 
@@ -63,20 +64,20 @@
 
 | 类型 | 格式 | 示例 |
 |---|---|---|
-| 性能优化 | `perf/<stage>-<topic>` | `perf/s4-scheduler-kvcache` |
-| Benchmark/实验 | `bench/<stage>-<topic>` | `bench/s1-baseline-harness` |
-| 测试 | `test/<stage>-<topic>` | `test/s6-regression-matrix` |
-| 文档 | `docs/<stage>-<topic>` | `docs/s7-final-delivery` |
-| 修复 | `fix/<stage>-<topic>` | `fix/s5-metax-attention` |
+| 阶段集成 | `phaseN/integration` | `phase4/integration` |
+| 阶段候选 | `phaseN/release-candidate` | `phase4/release-candidate` |
+| 个人任务 | `task/<成员>-sN-<topic>` | `task/chen-s4-scheduler-kv` |
+| 阻断修复 | `fix/<成员>-sN-<topic>` | `fix/chen-s5-metax-attention` |
 
 ### 3.3 标准工作流
 
 组员首次加入、每日拉取、任务分支、提交、Push、PR、冲突处理和收工步骤，统一参见 [TEAM_WORKFLOW.md](./TEAM_WORKFLOW.md)。以下为最简流程摘要。
 
 ```bash
-git switch flagos-2026-s2
-git pull --ff-only origin flagos-2026-s2
-git switch -c <任务分支>
+git fetch origin --prune
+git switch <phaseN/release-candidate>
+git pull --ff-only origin <phaseN/release-candidate>
+git switch -c <Issue 指定的 task/... 个人分支>
 
 # 完成一个可验证的小任务后
 git add <明确文件>
@@ -84,7 +85,7 @@ git commit -m "<type>: <清晰说明>"
 git push -u origin <任务分支>
 ```
 
-随后创建 Pull Request 到 `flagos-2026-s2`。每个 PR 必须：
+随后创建个人 Pull Request 到该阶段的 `phaseN/release-candidate`。阶段负责人再按 Issue 规定完成候选分支、集成分支和 `flagos-2026-s2` 的逐级收口。每个 PR 必须：
 
 1. 关联一个 Issue；
 2. 只处理一个清晰问题；
@@ -177,234 +178,351 @@ S0 项目治理与环境准备
 
 - **Issue**：`[S0] 建立项目治理、仓库安全与环境合同`
 - **GitHub Issue**：[#1](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/1)
-- **主负责人**：陈梓弘
-- **协作者**：周邦翔、朱健辉
-- **建议分支**：`chore/s0-project-bootstrap`
-- **前置依赖**：无
-- **目标**：让三名成员使用同一赛事基线、分支规则、结果格式和安全边界开展工作。
+- **阶段信息**：项目启动与协作规则冻结阶段；主责：陈梓弘；环境复核：周邦翔；文档可用性复核：朱健辉。
+- **输入门禁**：团队 Fork 已建立，三名成员 GitHub 账号可用，赛事指定分支和版本信息已确认。
+- **输出去向**：S1-S7 共用的仓库规则、环境合同、证据模板和安全边界。
 
-具体任务：
+#### 小组目标
 
-- [ ] 邀请两名成员加入 Fork，并验证各自可创建分支和 PR；
-- [ ] 记录 `origin`、`upstream`、默认分支和官方基线提交；
-- [ ] 建立 `docs/experiments/`、`docs/results/`、`scripts/competition/` 的用途约定；
-- [ ] 补充 `.gitignore`，排除模型、数据集、密钥、原始日志、trace 和本地结果；
-- [ ] 定义实验编号：`EXP-平台-阶段-序号`，例如 `EXP-METAX-S1-001`；
-- [ ] 定义 PR 模板字段：Issue、平台、场景、正确性、性能、风险、回退；
-- [ ] 确认天数与沐曦算力申请、账号、可用时段和负责人；
-- [ ] 建立版本清单模板和实验登记模板。
+让三名成员能在同一赛事基线和同一证据口径下独立开工、提交 PR 和交叉验收。规则必须写进仓库，不能依赖聊天记录或口头约定。
 
-交付物：
+#### 分支与合并要求
 
-- 本总方案；
-- 环境与版本清单模板；
-- 实验登记模板；
-- 安全的 `.gitignore`；
-- 可执行的团队 Git 工作流。
+- 阶段集成分支：`phase0/integration`；小组候选分支：`phase0/release-candidate`；
+- 陈梓弘：`task/chen-s0-governance`；周邦翔：`task/zhou-s0-environment`；朱健辉：`task/zhu-s0-templates`；
+- 个人分支从 `phase0/release-candidate` 创建，个人 PR 合并回该分支；
+- 陈梓弘汇总后提交 `phase0/release-candidate` → `phase0/integration`，验收后提交 `phase0/integration` → `flagos-2026-s2`；
+- 禁止直接提交共享分支，禁止 force-push 或变基改写共享历史；
+- PR 必须包含任务编号、交付物、检查命令、实际结果、遗留问题和评审人。
 
-验收条件：
+#### 陈梓弘个人任务：项目治理与仓库规则
 
-- 三名成员都能从 `origin/flagos-2026-s2` 创建分支并发起 PR；
-- `git status` 不显示模型、数据、密钥或大型结果目录；
-- 任意成员能根据文档解释代码应提交到哪里、结果保存到哪里；
-- 仓库默认分支与官方赛事分支关系已写清。
+- **任务编号**：`S0-C01` 建立远程与分支合同；`S0-C02` 固化 PR/Review/合并规则；`S0-C03` 配置仓库安全边界。
+- **个人分支**：`task/chen-s0-governance`。
+- **交付物**：`docs/evidence/phase-0/chen-governance/repository-contract.md`、`branch-and-review-rules.md`、`.gitignore-audit.md`。
+- **允许修改**：协作文档、PR 模板、`.gitignore` 和不影响框架行为的仓库配置。
+- **禁止修改**：模型行为、官方 Benchmark、赛事分支历史和上游远程地址；不得提交账号、令牌或个人材料。
+- **验收**：远程、默认分支、命名、Review 和回退规则均有可执行命令，另两名成员完成权限验证。
 
-闭环：S0 的版本、目录和记录模板直接作为 S1 的输入；缺少任一项不得开始正式基线测量。
+#### 周邦翔个人任务：环境与版本合同
+
+- **任务编号**：`S0-Z01` 建立双平台环境字段；`S0-Z02` 建立实验编号与结果字段；`S0-Z03` 登记算力申请和使用边界。
+- **个人分支**：`task/zhou-s0-environment`。
+- **交付物**：`docs/evidence/phase-0/zhou-environment/environment-matrix.md`、`experiment-template.md`、`compute-resource-register.md`。
+- **允许修改**：环境、实验和算力登记文档以及外围采集模板。
+- **禁止修改**：不得填写未实测版本或未获批算力；不得把真实密钥、Cookie、机器凭据写入仓库。
+- **验收**：模板覆盖芯片、驱动、运行时、Python、PyTorch、vLLM、插件、FlagGems、提交号、命令、结果和校验值。
+
+#### 朱健辉个人任务：协作文档与证据模板
+
+- **任务编号**：`S0-H01` 验证新成员工作流；`S0-H02` 建立证据索引模板；`S0-H03` 检查文档路径和命令可读性。
+- **个人分支**：`task/zhu-s0-templates`。
+- **交付物**：`docs/evidence/phase-0/zhu-templates/onboarding-check.md`、`evidence-index-template.md`、`documentation-usability-report.md`。
+- **允许修改**：Markdown 模板、示例和文档链接。
+- **禁止修改**：不得修改调度器、KV Cache、算子、模型代码；不得用虚构运行结果填充模板。
+- **验收**：朱健辉能只按文档完成拉取、建分支、提交、推送和创建 PR，并记录发现的问题。
+
+#### 小组共同任务与关闭门禁
+
+- `S0-G01`：三人各完成一次测试分支和测试 PR；交付 `docs/evidence/phase-0/group/access-verification.md`。
+- `S0-G02`：登记本阶段交接；交付 `docs/evidence/phase-0/group/handoff.md`。
+- 三个个人 PR 均经至少一名其他成员 Review，候选分支已汇总到阶段集成分支；
+- `git status` 不显示模型、数据、密钥或大型结果，任意成员能说明代码、结果和原始日志的存放位置；
+- 未达到门禁不得开始 S1 正式测量。
+
+#### 本阶段不做
+
+- 不进行性能优化或宣称性能收益；不上传模型、数据集和大型日志；不创建脱离 Issue 的长期个人分支。
+
+闭环：S0 的版本、目录、分支和证据合同直接作为 S1 输入。
 
 ### S1：双平台基线、精度与测量稳定性
 
 - **Issue**：`[S1] 复现 MiniCPM5-2B 双平台性能与精度基线`
 - **GitHub Issue**：[#2](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/2)
-- **主负责人**：周邦翔
-- **最终负责**：陈梓弘
-- **协作者**：朱健辉
-- **建议分支**：`bench/s1-baseline-harness`
-- **前置依赖**：S0 完成；至少获得一种官方算力
-- **目标**：建立可信的本团队基线，证明测量链路稳定且与官方口径一致。
+- **阶段信息**：双平台基线冻结阶段；主责：周邦翔；运行链路复核：陈梓弘；结果展示复核：朱健辉。
+- **输入门禁**：S0 已合并；至少一种官方算力可用；模型、框架、FlagGems 和数据集路径可访问。
+- **输出去向**：S2 profiler 对照和 S3-S6 所有收益计算的唯一基线。
 
-具体任务：
+#### 小组目标
 
-- [ ] 登记芯片、显存、驱动、运行时、Python、PyTorch、vLLM、插件和 FlagGems 版本；
-- [ ] 按官方命令启动服务，保存完整启动日志；
-- [ ] 执行简单 API 请求，检查模型名、返回结构和非空输出；
-- [ ] 运行 MATH-500 Level 3，保存 Evalscope 命令、工作目录和汇总结果；
-- [ ] 分别运行 4k/16k 场景，每个平台每场景至少 3 次有效重复；
-- [ ] 记录 `total tokens/s`、Output tok/s、duration、Mean/P50/P99 TTFT、TPOT、ITL 和失败请求；
-- [ ] 计算中位数、极差和变异系数；
-- [ ] 由朱健辉生成不改变数据含义的基线对比表和图；
-- [ ] 若与官方基线偏差超过 1%，先排查环境、预热、后台负载和失败请求。
+建立天数 BI-V150 与沐曦 C500 上可复现的精度、吞吐、时延和稳定性基线。正式数据必须绑定环境、命令、提交号和原始结果，不允许只保留截图或最好一次。
 
-建议代码与产物位置：
+#### 分支与合并要求
 
-- `scripts/competition/`：外围启动、采集和校验脚本；
-- `docs/experiments/EXP-*-S1-*.md`：实验记录；
-- `docs/results/baseline-summary.md`：汇总结论；
-- 原始大型日志保存在算力环境，不直接提交仓库，只登记路径和校验值。
+- 阶段集成分支：`phase1/integration`；候选分支：`phase1/release-candidate`；
+- 周邦翔：`task/zhou-s1-benchmark`；陈梓弘：`task/chen-s1-runtime-check`；朱健辉：`task/zhu-s1-baseline-evidence`；
+- 个人 PR → `phase1/release-candidate` → `phase1/integration` → `flagos-2026-s2`；
+- 禁止直接提交共享分支、修改正式 Benchmark 口径或只提交筛选后的成功结果。
 
-验收条件：
+#### 周邦翔个人任务：正式基线测量
 
-- 精度 `accuracy >= 0.95`；
-- 四个平台-场景组合均有 3 次有效结果；
-- 每组结果变异系数不高于 1%，否则形成波动原因说明；
-- 中位数低于官方基线 1% 以上时不得宣称复现成功；
-- TTFT 超过基线 +1% 时标记阻断并排查；
-- 另一名成员能用同一脚本复现结果文件结构。
+- **任务编号**：`S1-Z01` 登记双平台环境；`S1-Z02` 执行服务与精度基线；`S1-Z03` 执行 4k/16k 性能基线；`S1-Z04` 统计稳定性。
+- **个人分支**：`task/zhou-s1-benchmark`。
+- **交付物**：`docs/evidence/phase-1/zhou-benchmark/environment-lock.md`、`accuracy-baseline.md`、`baseline-results.csv`、`stability-analysis.md`、`commands.md`。
+- **允许修改**：`scripts/competition/` 的启动、采集、解析和校验脚本，以及个人证据目录。
+- **禁止修改**：官方输入/输出长度、并发、请求数、采样参数、模型行为和 Benchmark 指标算法；不得删除失败请求。
+- **验收**：两平台 × 4k/16k 均至少 3 次有效重复；`accuracy >= 0.95`；结果含中位数、极差、变异系数、TTFT 和失败数。
 
-闭环：S1 输出稳定基线、命令和日志索引，作为 S2 profiler 对照及后续所有优化的唯一分母。
+#### 陈梓弘个人任务：运行链路与版本复核
+
+- **任务编号**：`S1-C01` 核对加载与平台路径；`S1-C02` 核对服务参数和图模式；`S1-C03` 诊断超过 1% 的基线偏差。
+- **个人分支**：`task/chen-s1-runtime-check`。
+- **交付物**：`docs/evidence/phase-1/chen-runtime/runtime-path-audit.md`、`serve-parameter-check.md`、`baseline-deviation-diagnosis.md`。
+- **允许修改**：诊断脚本、日志开关和文档；必要修复必须单独提交并说明不改变计算语义。
+- **禁止修改**：不得在基线阶段加入性能优化，不得改变官方启动参数或隐藏平台回退。
+- **验收**：两平台实际走到的插件、vendor、图执行和 FlagGems 路径可由日志证明，偏差均有结论或阻塞登记。
+
+#### 朱健辉个人任务：基线图表与证据索引
+
+- **任务编号**：`S1-H01` 校验结果字段；`S1-H02` 生成基线对比图；`S1-H03` 建立实验与原始日志索引。
+- **个人分支**：`task/zhu-s1-baseline-evidence`。
+- **交付物**：`docs/evidence/phase-1/zhu-evidence/figure-source.csv`、`baseline-comparison.png`、`baseline-evidence-index.md`。
+- **允许修改**：结果可视化脚本、Markdown 和个人证据目录。
+- **禁止修改**：不得手工改数、挑选最好一次、修改核心框架/调度/KV Cache/算子代码或把未测平台写成完成。
+- **验收**：图可从锁定 CSV 重生成，数值与周邦翔的结果逐项一致，每个图表数据能回到实验编号和原始路径。
+
+#### 小组共同任务与关闭门禁
+
+- `S1-G01`：另一成员按同一命令复跑一个平台场景；交付 `docs/evidence/phase-1/group/cross-reproduction.md`。
+- `S1-G02`：形成基线锁定和 S2 交接；交付 `baseline-lock.md`、`handoff.md`。
+- 四个平台-场景组合结果齐全；TTFT 超过官方基线 +1% 或吞吐低于基线 1% 以上时不得标记完成，除非形成明确阻塞说明；
+- 三个个人 PR 已评审并汇总，正式结论不依赖未合并分支。
+
+#### 本阶段不做
+
+- 不做性能机制开发，不量化、不投机采样，不调整官方测试场景，不用 profiler 数据冒充正式成绩。
+
+闭环：S1 的锁定 CSV、环境和命令作为 S2-S6 唯一对照分母。
 
 ### S2：分层性能剖析与瓶颈地图
 
 - **Issue**：`[S2] 建立 Prefill/Decode 分层瓶颈地图与优化候选清单`
 - **GitHub Issue**：[#3](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/3)
-- **主负责人**：陈梓弘
-- **协作者**：周邦翔
-- **支持**：朱健辉
-- **建议分支**：`perf/s2-profile-bottlenecks`
-- **前置依赖**：S1 至少完成一个平台的稳定基线
-- **目标**：用 profiler 和框架日志回答“时间花在哪里、显存卡在哪里、哪个候选值得开发”。
+- **阶段信息**：性能剖析与候选决策阶段；主责：陈梓弘；采集质量负责人：周邦翔；可视化与证据负责人：朱健辉。
+- **输入门禁**：S1 至少一个平台的正式基线已锁定，采集环境与基线提交一致。
+- **输出去向**：S3 运行时、S4 调度/KV/图执行、S5 算子优化的启动清单。
 
-具体任务：
+#### 小组目标
 
-- [ ] 对 4k/16k 分别采集 Prefill 与 Decode 时间分解；
-- [ ] 记录请求等待、每轮运行请求数、批次 token 数和调度空隙；
-- [ ] 检查 `vllm_fl/worker/model_runner.py` 的输入准备、执行、采样和同步路径；
-- [ ] 检查 `vllm_fl/platform.py` 与 `vllm_fl/compilation/graph.py` 的图捕获、回退和形状覆盖；
-- [ ] 记录 KV Cache 使用、块分配/回收、碎片、临时 workspace 和峰值显存；
-- [ ] 统计累计耗时最高的 10 个算子及调用次数；
-- [ ] 分别检查 `vendor/txda/` 和 `vendor/metax/` 的注册、补丁和回退路径；
-- [ ] 将候选按“预期收益、实现成本、正确性风险、平台范围、验证成本”排序；
-- [ ] 明确哪些候选进入 S3、S4、S5，哪些候选拒绝及原因。
+用 profiler、框架日志和代码路径回答时间、显存和同步开销的位置，并给出可验证、可拒绝、可排序的候选，禁止凭经验直接开发。
 
-交付物：
+#### 分支与合并要求
 
-- `docs/results/bottleneck-map.md`；
-- 4k/16k、Prefill/Decode、天数/沐曦四维瓶颈表；
-- 热点算子清单和候选优化决策表；
-- profiler 原始文件的外部路径与校验值。
+- 阶段集成分支：`phase2/integration`；候选分支：`phase2/release-candidate`；
+- 陈梓弘：`task/chen-s2-bottleneck-map`；周邦翔：`task/zhou-s2-profile-capture`；朱健辉：`task/zhu-s2-profile-evidence`；
+- 个人 PR → 候选分支 → 阶段集成分支 → `flagos-2026-s2`；禁止直接向共享分支提交。
 
-验收条件：
+#### 陈梓弘个人任务：框架瓶颈定位与候选决策
 
-- 每个候选都能指向日志、trace 或代码路径，禁止纯经验猜测；
-- 至少给出一个框架级候选和一个算子级候选，或以证据说明某类候选不存在；
-- profiler 运行与正式 Benchmark 分开，不能把 profiler 结果当正式吞吐成绩；
-- 陈梓弘和周邦翔共同签字确认候选排序。
+- **任务编号**：`S2-C01` 分解 Prefill/Decode 路径；`S2-C02` 审计运行时、调度、KV 和图执行；`S2-C03` 建立热点算子与候选优先级。
+- **个人分支**：`task/chen-s2-bottleneck-map`。
+- **交付物**：`docs/evidence/phase-2/chen-analysis/bottleneck-map.md`、`code-path-audit.md`、`optimization-candidates.md`。
+- **允许修改**：诊断埋点、可关闭日志、分析脚本和个人证据；诊断代码不得进入最终热路径。
+- **禁止修改**：不得把候选直接实现成正式优化，不得修改 Benchmark 或根据固定场景硬编码。
+- **验收**：每个候选都有 trace/日志、代码路径、预期收益、风险、平台范围、验证成本和进入/拒绝结论。
 
-闭环：S2 的候选决策表是 S3-S5 的启动门；未进入清单的优化不得占用官方算力开发。
+#### 周邦翔个人任务：Profiler 采集与测量控制
+
+- **任务编号**：`S2-Z01` 设计采集矩阵；`S2-Z02` 采集双场景 trace 与显存；`S2-Z03` 校验采集开销和重复性。
+- **个人分支**：`task/zhou-s2-profile-capture`。
+- **交付物**：`docs/evidence/phase-2/zhou-capture/profile-plan.md`、`profile-index.csv`、`measurement-quality.md`、`commands.md`。
+- **允许修改**：外围采集、解析和校验脚本；个人证据目录。
+- **禁止修改**：不得将 profiler 运行当成正式吞吐结果，不得只采对结论有利的区间或删除异常 trace。
+- **验收**：4k/16k 至少覆盖 Prefill、Decode、峰值显存、调度空隙和前十热点，原始文件有路径和 SHA256。
+
+#### 朱健辉个人任务：瓶颈图与证据索引
+
+- **任务编号**：`S2-H01` 整理结构化 profiler 数据；`S2-H02` 生成分层瓶颈图；`S2-H03` 建立候选证据索引。
+- **个人分支**：`task/zhu-s2-profile-evidence`。
+- **交付物**：`docs/evidence/phase-2/zhu-evidence/profile-source.csv`、`prefill-decode-breakdown.png`、`top-operators.png`、`candidate-evidence-index.md`。
+- **允许修改**：解析辅助脚本、可视化脚本、图表和证据索引。
+- **禁止修改**：不得修改核心执行路径、调度、KV Cache 或算子；不得用图形美化改变数值或夸大候选收益。
+- **验收**：所有图可重生成，单位、平台、场景和采集条件完整，候选能反查原始 trace 和陈梓弘的代码结论。
+
+#### 小组共同任务与关闭门禁
+
+- `S2-G01`：三人评审候选并登记进入 S3/S4/S5 或拒绝原因；交付 `candidate-review.md`。
+- `S2-G02`：形成阶段交接；交付 `docs/evidence/phase-2/group/handoff.md`。
+- 至少给出一个框架级和一个算子级候选，或用证据说明不存在；三个个人 PR 完成 Review 并汇总；
+- 未进入候选清单的优化不得占用官方算力开发。
+
+#### 本阶段不做
+
+- 不宣称正式性能提升，不把相关性当因果，不实施无法独立验证或回退的“大改动”。
+
+闭环：候选决策表是 S3-S5 的启动门。
 
 ### S3：低风险运行时与执行路径优化
 
 - **Issue**：`[S3] 优化运行时热路径与可复用缓冲区`
 - **GitHub Issue**：[#4](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/4)
-- **主负责人**：陈梓弘
-- **测量负责人**：周邦翔
-- **建议分支**：`perf/s3-runtime-hotpath`
-- **前置依赖**：S2 证明运行时或执行路径存在可观测开销
-- **目标**：优先获得不改变模型数值语义、容易回退的性能增益。
+- **阶段信息**：低风险框架热路径优化阶段；开发主责：陈梓弘；独立测量：周邦翔；测试证据：朱健辉。
+- **输入门禁**：S2 明确指出运行时/执行路径开销及对应 trace、代码位置和候选优先级。
+- **输出去向**：通过单项门禁的提交进入 S6 候选组合。
 
-候选任务，仅执行被 S2 证据支持的条目：
+#### 小组目标
 
-- [ ] 缓存可复用的元数据、索引、形状或调度辅助结构；
-- [ ] 减少热路径 Python 对象创建、重复检查和同步；
-- [ ] 复用临时张量或 workspace，减少高频申请和释放；
-- [ ] 消除可证明冗余的数据布局或设备转换；
-- [ ] 为改动补充 CPU 单测或最小 GPU 功能测试；
-- [ ] 对每个改动做单项 A/B，而不是一次合并多个机制；
-- [ ] 记录回退开关或恢复方式。
+只实现 S2 有证据支持、数值语义不变且可独立回退的运行时优化。每个机制单独提交、单独测试、单独 A/B，负结果同样留档。
 
-重点代码范围：
+#### 分支与合并要求
 
-- `vllm_fl/worker/model_runner.py`；
-- `vllm_fl/worker/worker.py`；
-- `vllm_fl/platform.py`；
-- S2 实际定位到的相关模块。
+- 阶段集成分支：`phase3/integration`；候选分支：`phase3/release-candidate`；
+- 陈梓弘：`task/chen-s3-runtime`；周邦翔：`task/zhou-s3-validation`；朱健辉：`task/zhu-s3-test-evidence`；
+- 个人 PR → 候选分支 → 阶段集成分支 → `flagos-2026-s2`；核心代码 PR 必须由周邦翔复核性能、朱健辉复核证据完整性。
 
-验收条件：
+#### 陈梓弘个人任务：运行时优化实现
 
-- 单项优化至少在一个目标场景超过 1% 波动区间，或有明确 CPU/同步/显存证据支持保留；
-- 另一场景不得出现超过 1% 的无解释回退；
-- 精度仍不低于 `0.95`，输出和请求成功率正常；
-- 不改变官方服务参数和 Benchmark；
-- 单项提交可独立回退，实验登记完整。
+- **任务编号**：`S3-C01` 锁定候选与回退点；`S3-C02` 实现元数据/对象/同步优化；`S3-C03` 实现缓冲复用或冗余转换消除；`S3-C04` 补充正确性测试。
+- **个人分支**：`task/chen-s3-runtime`。
+- **交付物**：代码与测试；`docs/evidence/phase-3/chen-runtime/change-design.md`、`correctness-report.md`、`rollback-plan.md`。
+- **允许修改**：S2 指定的 `vllm_fl/worker/`、`vllm_fl/platform.py` 等运行时模块及对应测试。
+- **禁止修改**：不得扩大到调度/KV/算子机制，不得改 Benchmark、模型行为或按固定场景写特判。
+- **验收**：每项改动独立提交、可关闭/回退；单测通过；代码说明与 S2 候选一一对应。
 
-闭环：通过门禁的提交进入 S6 候选组合；无收益或不稳定的提交关闭并保留负结果记录。
+#### 周邦翔个人任务：独立 A/B 与回归
+
+- **任务编号**：`S3-Z01` 建立单项 A/B 矩阵；`S3-Z02` 执行目标与非目标场景；`S3-Z03` 核对精度、TTFT、显存和稳定性。
+- **个人分支**：`task/zhou-s3-validation`。
+- **交付物**：`docs/evidence/phase-3/zhou-validation/ab-matrix.md`、`performance-results.csv`、`regression-report.md`、`commands.md`。
+- **允许修改**：外围测量/解析脚本和个人证据目录。
+- **禁止修改**：不得修改陈梓弘的核心实现来追分，不得过滤负结果或改变基线与候选的运行口径。
+- **验收**：至少一个目标场景超过 1% 或有明确资源证据；另一场景无超过 1% 的无解释退化；`accuracy >= 0.95`。
+
+#### 朱健辉个人任务：测试矩阵与证据整理
+
+- **任务编号**：`S3-H01` 建立边界测试清单；`S3-H02` 运行文档/测试复核；`S3-H03` 建立提交-测试-结果索引。
+- **个人分支**：`task/zhu-s3-test-evidence`。
+- **交付物**：`docs/evidence/phase-3/zhu-evidence/test-matrix.md`、`test-review.md`、`evidence-index.md`。
+- **允许修改**：非核心测试辅助、Markdown 和证据索引。
+- **禁止修改**：不得修改调度器、KV Cache、算子或核心运行时实现，不得自行判定性能通过。
+- **验收**：每个优化提交均能链接到设计、测试、A/B、回退方法和评审结论。
+
+#### 小组共同任务与关闭门禁
+
+- `S3-G01`：逐项作出保留/回退/继续诊断决定；交付 `candidate-decision.md`。
+- `S3-G02`：向 S6 交接通过门禁的提交；交付 `docs/evidence/phase-3/group/handoff.md`。
+- 三个个人 PR 完成 Review；精度、服务参数、请求成功率和稳定性通过；负结果未被删除。
+
+#### 本阶段不做
+
+- 不实施 S2 未批准机制，不混入调度/KV/内核重写，不一次合并多个无法消融的机制。
+
+闭环：通过门禁的提交进入 S6，失败候选回退并保留记录。
 
 ### S4：调度、KV Cache 与图执行协同优化
 
 - **Issue**：`[S4] 优化调度、KV Cache 与图执行协同路径`
 - **GitHub Issue**：[#5](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/5)
-- **主负责人**：陈梓弘
-- **协作者**：周邦翔
-- **建议分支**：`perf/s4-scheduler-kvcache`
-- **前置依赖**：S2 证明存在调度空隙、KV Cache 开销或图回退问题
-- **目标**：提高设备持续忙碌时间和有效并发，同时守住 TTFT 与显存边界。
+- **阶段信息**：调度、KV Cache 与图执行优化阶段；开发主责：陈梓弘；压力与性能验收：周邦翔；测试证据：朱健辉。
+- **输入门禁**：S2 已证明存在调度空隙、KV 开销、显存碎片或图捕获/回退问题。
+- **输出去向**：可独立启用的 S6 调度/KV/图执行候选。
 
-候选任务：
+#### 小组目标
 
-- [ ] 分析 Prefill/Decode 混合批次、形状抖动和调度空隙；
-- [ ] 分析 `model_runner.py` 的 batch reorder、输入准备与 attention metadata 构建；
-- [ ] 检查 KV Cache 块映射、申请、回收和元数据更新路径；
-- [ ] 检查长上下文下的碎片、无效搬运和峰值显存；
-- [ ] 检查天数 `FULL_DECODE_ONLY` 图模式的捕获命中与回退原因；
-- [ ] 检查沐曦平台图执行能力和 `platform.py` 中的兼容性分支；
-- [ ] 仅使用运行时状态设计通用策略，禁止读取固定场景常量做特判；
-- [ ] 补充不同长度、批次变化、空队列和显存压力测试。
+提高设备忙碌时间和有效并发，同时守住 TTFT、峰值显存、正确性与非目标长度行为。策略只读取真实运行时状态，禁止识别固定 Benchmark 场景。
 
-重点代码范围：
+#### 分支与合并要求
 
-- `vllm_fl/worker/model_runner.py`；
-- `vllm_fl/worker/scheduler_fl.py`；
-- `vllm_fl/compilation/graph.py`；
-- `vllm_fl/platform.py`。
+- 阶段集成分支：`phase4/integration`；候选分支：`phase4/release-candidate`；
+- 陈梓弘：`task/chen-s4-scheduler-kv`；周邦翔：`task/zhou-s4-stress-validation`；朱健辉：`task/zhu-s4-test-evidence`；
+- 个人 PR → 候选分支 → 阶段集成分支 → `flagos-2026-s2`；核心实现须通过另外两人交叉验收。
 
-验收条件：
+#### 陈梓弘个人任务：调度/KV/图执行实现
 
-- 4k 或 16k 的 `total tokens/s` 中位数提升超过 1%；
-- 另一目标场景无超过 1% 的无解释退化；
-- TTFT 满足官方门槛，峰值显存不引入 OOM；
-- 在非目标长度的最小回归用例中不出现硬编码行为；
-- 精度、服务稳定性和图执行回退日志通过检查。
+- **任务编号**：`S4-C01` 锁定调度与 KV 瓶颈；`S4-C02` 实现通用运行时策略；`S4-C03` 处理双平台图执行与回退；`S4-C04` 增加边界测试和回退开关。
+- **个人分支**：`task/chen-s4-scheduler-kv`。
+- **交付物**：代码与测试；`docs/evidence/phase-4/chen-implementation/design.md`、`platform-behavior.md`、`rollback-plan.md`。
+- **允许修改**：经 S2 批准的 `model_runner.py`、`scheduler_fl.py`、`compilation/graph.py`、`platform.py` 和相应测试。
+- **禁止修改**：不得读取固定 input/output/concurrency 常量做特判，不得改模型、采样、量化或 Benchmark 口径。
+- **验收**：策略适用于非目标长度；天数与沐曦路径和回退清晰；单项提交可独立撤销。
 
-闭环：通过的调度/KV/图改动形成可独立启用的组合候选，交给 S6 消融；失败候选回退并记录瓶颈是否已被证伪。
+#### 周邦翔个人任务：压力、性能与稳定性验收
+
+- **任务编号**：`S4-Z01` 建立目标/非目标矩阵；`S4-Z02` 执行吞吐与 TTFT A/B；`S4-Z03` 执行 KV/显存/空队列/批次变化压力测试。
+- **个人分支**：`task/zhou-s4-stress-validation`。
+- **交付物**：`docs/evidence/phase-4/zhou-validation/performance-results.csv`、`memory-stress-report.md`、`graph-fallback-report.md`、`commands.md`。
+- **允许修改**：测试和采集脚本、个人证据目录。
+- **禁止修改**：不得调整核心算法、删除 OOM/回退/失败请求，或使用与基线不同的服务参数。
+- **验收**：4k 或 16k 中位吞吐提升超过 1%；另一目标场景无未解释退化；TTFT 合规且无新增 OOM。
+
+#### 朱健辉个人任务：边界测试与证据索引
+
+- **任务编号**：`S4-H01` 整理长度/批次/空队列测试清单；`S4-H02` 核查平台回退日志；`S4-H03` 建立代码-测试-结果证据链。
+- **个人分支**：`task/zhu-s4-test-evidence`。
+- **交付物**：`docs/evidence/phase-4/zhu-evidence/boundary-test-matrix.md`、`fallback-log-index.md`、`evidence-index.md`。
+- **允许修改**：测试辅助、日志解析、Markdown 证据。
+- **禁止修改**：不得开发或修改调度器、KV Cache、图编译与算子核心代码；不得将未测试状态标成通过。
+- **验收**：每个边界用例有输入、预期、实际、提交号和日志；能识别硬编码或平台错误回退。
+
+#### 小组共同任务与关闭门禁
+
+- `S4-G01`：完成候选保留/回退评审；交付 `candidate-decision.md`。
+- `S4-G02`：向 S6 交接候选、开关、限制和提交；交付 `docs/evidence/phase-4/group/handoff.md`。
+- 三个个人 PR 已 Review；精度、服务稳定性、非目标长度和图回退检查全部通过。
+
+#### 本阶段不做
+
+- 不重写与瓶颈无关模块，不做 Benchmark 特判，不用增大显存风险换取无法稳定复现的单次吞吐。
+
+闭环：通过门禁的候选进入 S6，失败候选回退并登记。
 
 ### S5：热点算子、FlagGems 与双平台适配
 
 - **Issue**：`[S5] 基于 profiler 优化热点算子并完成双平台适配`
 - **GitHub Issue**：[#6](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/6)
-- **主负责人**：陈梓弘
-- **协作者**：周邦翔
-- **支持**：朱健辉负责结果对比图，不参与内核实现
-- **建议分支**：`perf/s5-hot-operators`
-- **前置依赖**：S2 给出明确热点算子、调用形状和平台证据
-- **目标**：对累计耗时显著的真实热点实施融合、内核或编译优化。
+- **阶段信息**：热点算子与平台适配阶段；实现主责：陈梓弘；数值/端到端验收：周邦翔；结果图与证据：朱健辉。
+- **输入门禁**：S2 给出热点算子、真实调用 shape、累计耗时、平台路径和预期验证方法。
+- **输出去向**：通过数值和端到端门禁的插件/FlagGems 对应提交进入 S6。
 
-候选任务：
+#### 小组目标
 
-- [ ] 确认热点属于 Attention、RMSNorm、RoPE、激活、GEMM、采样或数据转换中的哪一类；
-- [ ] 检查 FlagGems `v5.3.5` 已有实现、调用路径和回退路径；
-- [ ] 评估相邻逐元素计算融合、减少中间写回或 kernel launch 的可行性；
-- [ ] 分析访存、并行划分、shape specialization 和编译缓存；
-- [ ] 在 `vendor/txda/` 或 `vendor/metax/` 中隔离平台差异；
-- [ ] 如需修改 FlagGems，单独 Fork 并记录插件提交与 FlagGems 提交的对应关系；
-- [ ] 增加参考实现对照、容差、边界 shape 和回退测试；
-- [ ] 验证优化不是单纯切换算子或删掉选择逻辑。
+只优化真实热点，通过融合、访存、并行划分或编译缓存取得可复现收益，并为不支持的平台保留正确回退。禁止没有实质优化的算子切换。
 
-重点代码范围由 S2 决定，可能包括：
+#### 分支与合并要求
 
-- `vllm_fl/dispatch/backends/vendor/txda/`；
-- `vllm_fl/dispatch/backends/vendor/metax/`；
-- `vllm_fl/dispatch/backends/flaggems/impl/`；
-- `vllm_fl/ops/`；
-- 独立 FlagGems Fork 中的对应算子。
+- 阶段集成分支：`phase5/integration`；候选分支：`phase5/release-candidate`；
+- 陈梓弘：`task/chen-s5-operators`；周邦翔：`task/zhou-s5-op-validation`；朱健辉：`task/zhu-s5-op-evidence`；
+- 个人 PR → 候选分支 → 阶段集成分支 → `flagos-2026-s2`；涉及 FlagGems 时必须记录两个仓库提交对应关系。
 
-验收条件：
+#### 陈梓弘个人任务：热点算子实现与双平台回退
 
-- 数值结果与参考实现处于明确容差内；
-- 目标场景中位数提升超过 1%，或热点累计时间有可重复的显著下降且端到端无退化；
-- 不支持的平台走清晰回退路径，不破坏另一平台；
-- 新增算子测试和端到端精度均通过；
-- 技术报告能够说明机制、适用 shape、平台差异和代价。
+- **任务编号**：`S5-C01` 锁定热点与参考实现；`S5-C02` 设计并实现融合/内核/编译优化；`S5-C03` 隔离 txda/metax 差异；`S5-C04` 增加参考、边界 shape 与回退测试。
+- **个人分支**：`task/chen-s5-operators`。
+- **交付物**：代码与测试；`docs/evidence/phase-5/chen-operators/operator-design.md`、`platform-dispatch.md`、`commit-mapping.md`、`rollback-plan.md`。
+- **允许修改**：S2 指定的 vendor、FlagGems dispatch、`vllm_fl/ops/` 及独立 FlagGems Fork 对应算子。
+- **禁止修改**：不得删主要选择逻辑、无优化切换算子、修改模型语义、量化/投机采样或按 Benchmark shape 硬编码结果。
+- **验收**：机制、适用 shape、容差、平台差异和代价明确；不支持平台有显式正确回退。
 
-闭环：通过的算子改动及其依赖版本进入 S6；未达端到端收益的实验只作为诊断记录，不进入最终组合。
+#### 周邦翔个人任务：数值与端到端独立验收
+
+- **任务编号**：`S5-Z01` 建立参考实现和 shape 矩阵；`S5-Z02` 执行数值/边界/回退测试；`S5-Z03` 执行热点与端到端 A/B。
+- **个人分支**：`task/zhou-s5-op-validation`。
+- **交付物**：`docs/evidence/phase-5/zhou-validation/numerical-results.csv`、`shape-and-fallback-report.md`、`performance-results.csv`、`commands.md`。
+- **允许修改**：测试、基准采集和结果解析脚本。
+- **禁止修改**：不得改算子实现以适配测试，不得放宽未说明的容差或忽略另一平台失败。
+- **验收**：数值在明确容差内；目标场景中位数提升超过 1%，或热点显著下降且端到端无退化；`accuracy >= 0.95`。
+
+#### 朱健辉个人任务：算子结果图与证据索引
+
+- **任务编号**：`S5-H01` 核查结果输入；`S5-H02` 生成热点/端到端对比图；`S5-H03` 建立插件-FlagGems-测试证据索引。
+- **个人分支**：`task/zhu-s5-op-evidence`。
+- **交付物**：`docs/evidence/phase-5/zhu-evidence/figure-source.csv`、`operator-performance.png`、`end-to-end-comparison.png`、`evidence-index.md`。
+- **允许修改**：可视化与证据辅助脚本、图表、Markdown。
+- **禁止修改**：不得参与或修改底层算子实现、调度器和 KV Cache；不得手工改变实验数值或掩盖负结果。
+- **验收**：图表可重生成且与锁定 CSV 一致，能追溯到两个仓库提交、测试命令和原始结果。
+
+#### 小组共同任务与关闭门禁
+
+- `S5-G01`：完成候选保留/回退评审；交付 `candidate-decision.md`。
+- `S5-G02`：向 S6 交接实现、依赖、回退和限制；交付 `docs/evidence/phase-5/group/handoff.md`。
+- 数值、边界、回退、端到端精度和性能均完成；三个个人 PR 经交叉 Review 并汇总。
+
+#### 本阶段不做
+
+- 不优化非热点，不以算子切换冒充优化，不牺牲正确性或另一平台，不合入无法说明机制与回退的代码。
+
+闭环：通过门禁的算子及对应版本进入 S6；其他实验只保留为诊断记录。
 
 ### S6：组合优化、消融、回归与稳定性
 
@@ -614,47 +732,87 @@ docs/evidence/phase-6/
 
 - **Issue**：`[S7] 完成技术报告、复现说明与最终提交包`
 - **GitHub Issue**：[#8](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/8)
-- **主负责人**：陈梓弘
-- **协作者**：周邦翔、朱健辉
-- **建议分支**：`docs/s7-final-delivery`
-- **前置依赖**：S6 完成并锁定最终提交
-- **目标**：形成评委能够独立理解、编译、运行和验证的完整作品。
+- **阶段信息**：冻结、发布、答辩与最终提交阶段；主责：陈梓弘；复现质量负责人：周邦翔；图表与提交证据负责人：朱健辉。
+- **输入门禁**：S6 最终提交、双平台结果、消融、精度、已知限制和证据索引全部锁定。
+- **输出去向**：赛事提交 ZIP、`report.pdf`、`readme.md`、最终标签、演示材料和获奖后官方 PR。
 
-具体任务：
+#### 小组目标
 
-- [ ] 清理源码、调试开关、临时打印和无关文件；
-- [ ] 编写 README：环境、版本、编译、启动、评测、结果校验、故障排查；
-- [ ] 编写技术报告：问题、瓶颈、方法、实现、实验、消融、平台差异、创新与限制；
-- [ ] 对照代码检查报告中的每项策略确实存在；
-- [ ] 对照结果文件检查摘要、正文、表格和图表数值一致；
-- [ ] 在干净环境完成一次从安装到结果校验的复现演练；
-- [ ] 整理 `vllm-plugin-FL/`，涉及算子时整理 `FlagGems/`；
-- [ ] 检查无模型、数据集、密钥、个人材料和不必要大文件；
-- [ ] 准备最终 GitHub PR 标题和变更说明；
-- [ ] 在截止时间前完成平台提交和获奖后的官方 PR 要求。
+从唯一冻结提交形成评委可在新环境独立理解、安装、启动、评测和核验的提交包。代码、报告、README、图表与演示使用同一组锁定结果，任何未完成能力明确披露。
 
-验收条件：
+#### 分支与合并要求
 
-- `report.pdf`、`readme.md`、源码和结果完全一致；
-- 全新环境严格按 README 能完成安装、启动和评测；
-- 关键命令可以直接执行，无隐含手工步骤；
-- 提交包结构符合赛事要求；
-- 团队三人完成交叉检查并签字确认。
+- 阶段集成分支：`phase7/integration`；发布候选分支：`phase7/release-candidate`；
+- 陈梓弘：`task/chen-s7-release`；周邦翔：`task/zhou-s7-reproduction`；朱健辉：`task/zhu-s7-presentation-evidence`；
+- 个人 PR → `phase7/release-candidate` → `phase7/integration` → `flagos-2026-s2`；
+- 最终标签只允许指向通过全部门禁的唯一提交；共享分支禁止 force-push 和变基改写历史。
 
-闭环：S7 产物直接组成赛事提交包；组委会复现结果是项目最终验收。
+#### 陈梓弘个人任务：报告、范围与发布包
+
+- **任务编号**：`S7-C01` 锁定最终范围与提交；`S7-C02` 编写技术报告；`S7-C03` 整理源码与提交清单；`S7-C04` 创建最终标签和发布记录。
+- **个人分支**：`task/chen-s7-release`。
+- **交付物**：`report.pdf`、`docs/evidence/phase-7/chen-release/final-scope.md`、`submission-manifest.md`、`final-release-record.md`、最终汇总 PR。
+- **允许修改**：报告、发布文档、打包清单及清除已确认的临时调试输出；代码变化仅限阻断复现的已评审修复。
+- **禁止修改**：不得在冻结后新增性能机制、改模型行为或改写锁定结果；不得把未完成项写成已实现。
+- **验收**：报告每项策略都能追溯到代码、提交、实验和图表；提交清单中文件存在且版本一致。
+
+#### 周邦翔个人任务：README 与干净环境复现
+
+- **任务编号**：`S7-Z01` 编写环境/安装/启动/评测 README；`S7-Z02` 在新目录或新机器从零复现；`S7-Z03` 执行最终精度、性能和稳定性回归；`S7-Z04` 登记故障排查与限制。
+- **个人分支**：`task/zhou-s7-reproduction`。
+- **交付物**：`readme.md`、`docs/evidence/phase-7/zhou-reproduction/clean-install-report.md`、`final-regression-report.md`、`troubleshooting.md`。
+- **允许修改**：复现说明、外围安装/校验脚本和证据目录。
+- **禁止修改**：不得使用本机隐含路径、缓存或未记录手工步骤；不得改变正式参数来使复现通过。
+- **验收**：非作者严格按 README 可完成安装、启动、API、精度和 Benchmark；最终测试提交与发布提交一致。
+
+#### 朱健辉个人任务：最终图表、演示与证据索引
+
+- **任务编号**：`S7-H01` 核对报告图表数据；`S7-H02` 整理演示结果页和讲解顺序；`S7-H03` 建立最终提交证据索引；`S7-H04` 检查提交包隐私与无关文件。
+- **个人分支**：`task/zhu-s7-presentation-evidence`。
+- **交付物**：`docs/evidence/phase-7/zhu-evidence/final-figure-source.csv`、`presentation-outline.md`、`final-evidence-index.md`、`package-content-audit.md`。
+- **允许修改**：锁定数据生成的图表、答辩文档、Markdown 索引和打包审计清单。
+- **禁止修改**：不得修改核心代码、调度器、KV Cache、算子或实验数据；不得将个人简历、学号、密钥、模型和数据集打入提交包。
+- **验收**：报告和演示中的数值均来自锁定 CSV，可回到提交号和原始结果；提交包无敏感或无关文件。
+
+#### 小组共同任务
+
+- `S7-G01`：完成两次全流程复现与十分钟答辩彩排；交付 `docs/evidence/phase-7/group/final-rehearsal-report.md`。
+- `S7-G02`：三人交叉核对代码、报告、README、图表、限制和贡献；交付 `release-checklist.md`。
+- `S7-G03`：形成赛事提交和获奖后 PR 交接；交付 `handoff.md`。
+
+#### 最终提交包
+
+- `vllm-plugin-FL/` 全部源码和编译脚本；涉及算子改动时包含 `FlagGems/`；
+- `report.pdf`、`readme.md`、锁定结果、复现证据和许可证/版本说明；
+- 不包含模型、数据集、密钥、个人材料、缓存、构建垃圾和大型原始日志。
+
+#### S7 关闭门禁
+
+- 三个个人 PR 完成 Review 并合并，发布候选汇总到阶段集成分支；
+- `report.pdf`、`readme.md`、源码、结果与图表完全一致；
+- 干净环境复现通过，`accuracy >= 0.95`，正式结果绑定最终提交；
+- 最终标签指向唯一通过门禁提交，提交包完成 SHA256 登记；
+- 陈梓弘签署范围与提交完整性，周邦翔签署复现和测试结论，朱健辉签署图表与证据一致性；
+- 未达到以上条件不得创建最终标签或提交赛事平台。
+
+#### 本阶段不做
+
+- 不新增功能或优化机制，不为演示删除检查或失败测试，不伪造结果，不隐瞒已知限制。
+
+闭环：S7 产物直接组成赛事提交包；组委会复现结果是最终验收。
 
 ## 8. Issue 总表
 
 | 阶段 | Issue 标题 | 主负责人 | 分支 | 优先级 | 状态 |
 |---|---|---|---|---|---|
-| S0 | [#1](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/1) 建立项目治理、仓库安全与环境合同 | 陈梓弘 | `chore/s0-project-bootstrap` | P0 | 已创建 |
-| S1 | [#2](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/2) 复现 MiniCPM5-2B 双平台性能与精度基线 | 周邦翔 | `bench/s1-baseline-harness` | P0 | 已创建/等待算力 |
-| S2 | [#3](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/3) 建立 Prefill/Decode 分层瓶颈地图与优化候选清单 | 陈梓弘 | `perf/s2-profile-bottlenecks` | P0 | 已创建/阻塞于 S1 |
-| S3 | [#4](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/4) 优化运行时热路径与可复用缓冲区 | 陈梓弘 | `perf/s3-runtime-hotpath` | P1 | 已创建/等待 S2 |
-| S4 | [#5](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/5) 优化调度、KV Cache 与图执行协同路径 | 陈梓弘 | `perf/s4-scheduler-kvcache` | P1 | 已创建/等待 S2 |
-| S5 | [#6](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/6) 基于 profiler 优化热点算子并完成双平台适配 | 陈梓弘 | `perf/s5-hot-operators` | P1 | 已创建/等待 S2 |
-| S6 | [#7](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/7) 完成双平台组合优化、消融与回归验收 | 周邦翔 | `test/s6-integration-ablation` | P0 | 已创建/等待 S3-S5 |
-| S7 | [#8](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/8) 完成技术报告、复现说明与最终提交包 | 陈梓弘 | `docs/s7-final-delivery` | P0 | 已创建/等待 S6 |
+| S0 | [#1](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/1) 建立项目治理、仓库安全与环境合同 | 陈梓弘 | `phase0/release-candidate` | P0 | 已创建 |
+| S1 | [#2](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/2) 复现 MiniCPM5-2B 双平台性能与精度基线 | 周邦翔 | `phase1/release-candidate` | P0 | 已创建/等待算力 |
+| S2 | [#3](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/3) 建立 Prefill/Decode 分层瓶颈地图与优化候选清单 | 陈梓弘 | `phase2/release-candidate` | P0 | 已创建/阻塞于 S1 |
+| S3 | [#4](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/4) 优化运行时热路径与可复用缓冲区 | 陈梓弘 | `phase3/release-candidate` | P1 | 已创建/等待 S2 |
+| S4 | [#5](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/5) 优化调度、KV Cache 与图执行协同路径 | 陈梓弘 | `phase4/release-candidate` | P1 | 已创建/等待 S2 |
+| S5 | [#6](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/6) 基于 profiler 优化热点算子并完成双平台适配 | 陈梓弘 | `phase5/release-candidate` | P1 | 已创建/等待 S2 |
+| S6 | [#7](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/7) 完成双平台组合优化、消融与回归验收 | 周邦翔 | `phase6/release-candidate` | P0 | 已创建/等待 S3-S5 |
+| S7 | [#8](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/8) 完成技术报告、复现说明与最终提交包 | 陈梓弘 | `phase7/release-candidate` | P0 | 已创建/等待 S6 |
 
 ## 9. 实验记录模板
 

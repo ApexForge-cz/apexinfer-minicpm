@@ -164,44 +164,51 @@ git fetch upstream --prune
 
 开始任务前确认：
 
-- Issue 没有被其他人重复领取；
-- 自己是主负责人或协作者；
+- 找到 Issue 中分配给自己的任务编号、个人分支和交付物；
+- 自己只处理该个人任务，不代替其他成员完成或签署任务；
 - 前置阶段已经完成；
-- Issue 目标、交付物和验收条件明确；
-- 在 Issue 下留言“开始处理，计划分支：`分支名`”。
+- Issue 的阶段候选分支已经由负责人创建并推送；
+- 允许修改、禁止修改和验收条件明确；
+- 在 Issue 下留言“开始处理 `任务编号`，分支：`个人分支`，预计交付：`文件路径`”。
 
 没有对应 Issue，不开始正式开发。临时发现的问题先新建 Issue 或在原 Issue 中确认范围。
 
 ## 4. 开始一个新任务
 
-### 4.1 更新主分支
+### 4.1 更新 Issue 指定的基准分支
 
 ```powershell
-git switch flagos-2026-s2
-git pull --ff-only origin flagos-2026-s2
+git fetch origin --prune
+git switch <阶段候选分支>
+git pull --ff-only origin <阶段候选分支>
 ```
 
-如果 `pull --ff-only` 失败，说明本地主分支出现了额外提交或分叉。不要强行处理，联系项目负责人。
+例如 S4 的个人任务统一从 `phase4/release-candidate` 创建，不从 `flagos-2026-s2` 或其他成员分支创建。如果候选分支尚不存在，联系阶段负责人创建，不得自行换一个基准。
 
-### 4.2 从最新主分支创建任务分支
+如果 `pull --ff-only` 失败，说明本地分支出现了额外提交或分叉。不要强行处理，联系项目负责人。
+
+### 4.2 从最新阶段候选分支创建个人任务分支
 
 分支名必须与 Issue 对应：
 
 ```powershell
-git switch -c <分支名>
+git switch -c <Issue 指定的个人分支>
 ```
 
 示例：
 
 ```powershell
-# S1 基线工具
-git switch -c bench/s1-baseline-harness
+# S1 周邦翔基线任务
+git switch phase1/release-candidate
+git switch -c task/zhou-s1-benchmark
 
-# S4 调度与 KV Cache
-git switch -c perf/s4-scheduler-kvcache
+# S4 陈梓弘调度与 KV Cache 任务
+git switch phase4/release-candidate
+git switch -c task/chen-s4-scheduler-kv
 
-# 文档
-git switch -c docs/s7-final-delivery
+# S7 朱健辉答辩证据任务
+git switch phase7/release-candidate
+git switch -c task/zhu-s7-presentation-evidence
 ```
 
 创建后检查：
@@ -211,7 +218,7 @@ git branch --show-current
 git status --short --branch
 ```
 
-必须确认当前不是 `flagos-2026-s2`，再开始修改。
+必须确认当前分支就是 Issue 分配给自己的 `task/...` 分支，再开始修改。
 
 ### 4.3 首次 Push 任务分支
 
@@ -385,17 +392,17 @@ Push 后打开仓库：
 点击 `Compare & pull request`，确认：
 
 ```text
-base: flagos-2026-s2
-compare: 你的任务分支
+base: Issue 中的 phaseN/release-candidate
+compare: Issue 中你的 task/... 个人分支
 ```
 
-不要把 Base 选成 GitHub `main`。
+不要把 Base 选成 `main`、`flagos-2026-s2`、阶段集成分支或其他成员分支。
 
 ### 9.2 命令行创建
 
 ```powershell
 gh pr create `
-  --base flagos-2026-s2 `
+  --base <阶段候选分支> `
   --head <任务分支> `
   --title "<类型>: <清晰标题>" `
   --fill
@@ -404,7 +411,7 @@ gh pr create `
 任务未完成时创建 Draft PR：
 
 ```powershell
-gh pr create --draft --base flagos-2026-s2 --head <任务分支> --fill
+gh pr create --draft --base <阶段候选分支> --head <任务分支> --fill
 ```
 
 ### 9.3 PR 必填内容
@@ -414,7 +421,7 @@ gh pr create --draft --base flagos-2026-s2 --head <任务分支> --fill
 - PR Category；
 - PR Type；
 - Description：为什么改、改了什么；
-- Related Issues：使用 `Closes #编号`；
+- Related Issues：个人任务 PR 使用 `Refs #编号`，不要提前关闭阶段 Issue；
 - Changes：主要文件和机制；
 - Testing：命令、平台、结果；
 - 性能 PR 额外写基线、优化结果、TTFT、精度、风险和回退方式。
@@ -423,7 +430,11 @@ gh pr create --draft --base flagos-2026-s2 --head <任务分支> --fill
 
 ```markdown
 ### Related Issues
-Closes #2
+Refs #2
+
+### Task
+- Task ID: S1-Z03
+- Deliverables: `docs/evidence/phase-1/zhou-benchmark/baseline-results.csv`
 
 ### Testing
 - `pytest tests/unit_tests/... -v`: passed
@@ -461,7 +472,7 @@ Closes #2
 
 ### 10.4 合并权限
 
-- 普通组员不直接向主分支 Push；
+- 普通组员不直接向阶段候选、阶段集成或赛事主分支 Push；
 - 项目负责人在审核通过后合并；
 - 高风险性能改动必须由非作者复核；
 - S6 之后进入代码冻结，只接受阻断性修复和交付文档。
@@ -487,7 +498,7 @@ git branch -d <已合并分支>
 git push origin --delete <已合并分支>
 ```
 
-然后在对应 Issue 中确认验收清单。PR 使用 `Closes #编号` 时，合并后 Issue 会自动关闭。
+然后在对应 Issue 中记录个人任务 PR、合并提交、交付物和验收人。个人 PR 不关闭阶段 Issue；只有阶段收口 PR 达到关闭门禁后，才由负责人关闭对应 Issue。
 
 ## 12. 同一个任务第二天继续做
 
@@ -501,10 +512,10 @@ git switch <你的任务分支>
 git pull --ff-only origin <你的任务分支>
 ```
 
-如果主分支在此期间有新提交，把它合入任务分支：
+如果阶段候选分支在此期间有新提交，把它合入任务分支：
 
 ```powershell
-git merge origin/flagos-2026-s2
+git merge origin/<阶段候选分支>
 ```
 
 解决可能的冲突、运行测试，然后：
@@ -637,9 +648,9 @@ git merge upstream/flagos-2026-s2
 ```powershell
 git status --short --branch
 git fetch origin --prune
-git switch flagos-2026-s2
-git pull --ff-only origin flagos-2026-s2
-git switch -c <任务分支>
+git switch <阶段候选分支>
+git pull --ff-only origin <阶段候选分支>
+git switch -c <Issue 指定的个人分支>
 git push -u origin <任务分支>
 ```
 
@@ -657,14 +668,14 @@ git push
 ### 创建 PR
 
 ```powershell
-gh pr create --base flagos-2026-s2 --head <任务分支> --fill
+gh pr create --base <阶段候选分支> --head <任务分支> --fill
 ```
 
 ### 合并后同步
 
 ```powershell
-git switch flagos-2026-s2
-git pull --ff-only origin flagos-2026-s2
+git switch <阶段候选分支>
+git pull --ff-only origin <阶段候选分支>
 git branch -d <已合并分支>
 ```
 
