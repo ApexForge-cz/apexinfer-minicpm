@@ -1,8 +1,11 @@
 # ApexInfer 团队日常 Git 工作流程
 
-> 适用成员：陈梓弘、周邦翔、朱健辉  
-> 适用仓库：<https://github.com/ApexForge-cz/apexinfer-minicpm>  
-> 默认主分支：`flagos-2026-s2`  
+> 适用成员：陈梓弘、周邦翔、朱健辉
+>
+> 适用仓库：<https://github.com/ApexForge-cz/apexinfer-minicpm>
+>
+> 默认主分支：`flagos-2026-s2`
+>
 > 完整项目计划：[PROJECT_EXECUTION_PLAN.md](./PROJECT_EXECUTION_PLAN.md)
 
 ## 1. 先理解这四个概念
@@ -522,13 +525,7 @@ git status
 
 冲突文件中会出现：
 
-```text
-<<<<<<< HEAD
-你的内容
-=======
-主分支内容
->>>>>>> origin/flagos-2026-s2
-```
+冲突块由“当前分支内容、分隔线、主分支内容”三部分组成。编辑器通常会用 `Current Change` 和 `Incoming Change` 标记它们；不要把这些标记保留在最终文件中。
 
 与相关成员确认正确内容后，删除标记并保留最终版本。
 
