@@ -410,35 +410,205 @@ S0 项目治理与环境准备
 
 - **Issue**：`[S6] 完成双平台组合优化、消融与回归验收`
 - **GitHub Issue**：[#7](https://github.com/ApexForge-cz/apexinfer-minicpm/issues/7)
-- **主负责人**：周邦翔
-- **最终负责**：陈梓弘
-- **协作者**：朱健辉
-- **建议分支**：`test/s6-integration-ablation`
-- **前置依赖**：S3-S5 至少有一项通过单项门禁
-- **目标**：证明最终组合收益来自可解释改动，且在两平台、两场景中稳定可复现。
+- **阶段信息**：最终组合与发布前验收阶段；截止时间为进入 S7 前；本阶段不再新增未经 S2-S5 证据支持的优化机制。
+- **成员**：陈梓弘、周邦翔、朱健辉；主责：周邦翔；最终范围与提交负责人：陈梓弘；结果证据负责人：朱健辉。
+- **输入门禁**：S3-S5 至少一项通过单项门禁；每项候选已有提交号、测试记录、精度结果、性能结果和回退方式。
+- **输出去向**：最终候选提交、消融结果、双平台回归报告、结果图表、S7 技术报告与复现说明。
 
-具体任务：
+#### 小组目标
 
-- [ ] 从干净赛事基线逐项合并候选优化；
-- [ ] 构建 Baseline、A、B、A+B 等消融矩阵；
-- [ ] 两平台 × 两场景各完成至少 3 次有效正式运行；
-- [ ] 执行 MATH-500 Level 3 精度评测；
-- [ ] 检查服务启动、简单请求、请求完成率、超时和异常日志；
-- [ ] 记录吞吐、TTFT、TPOT、ITL、duration、峰值显存和运行状态；
-- [ ] 进行长时间运行或连续多轮稳定性测试；
-- [ ] 朱健辉根据锁定 CSV 生成对比图，禁止手工修改数据；
-- [ ] 形成最终保留/删除改动清单。
+从已通过单项门禁的候选中形成唯一最终组合，证明收益来自可解释改动，并在天数 BI-V150、沐曦 C500 的 4k/16k 场景中稳定复现。所有性能、精度、TTFT、显存和失败请求结论必须来自锁定提交和可追溯原始结果；不能用口头说明、截图或“计划测试”代替验收证据。
 
-验收条件：
+#### 分支与合并要求
 
-- 精度 `>= 0.95`；
-- 四个平台-场景组合均完成并有原始记录；
+- 阶段集成分支：`phase6/integration`，由陈梓弘从最新 `origin/flagos-2026-s2` 创建并推送；
+- 小组候选分支：`phase6/release-candidate`，由陈梓弘从 `phase6/integration` 创建并推送；
+- 周邦翔个人分支：`task/zhou-s6-validation`；
+- 陈梓弘个人分支：`task/chen-s6-integration`；
+- 朱健辉个人分支：`task/zhu-s6-evidence`；
+- 所有个人分支均从最新 `phase6/release-candidate` 创建；
+- 个人任务 PR 合并目标统一为 `phase6/release-candidate`；
+- 个人任务完成并交叉评审后，由陈梓弘从 `phase6/release-candidate` 向 `phase6/integration` 提交小组汇总 PR；
+- S6 全部验收后，由陈梓弘从 `phase6/integration` 向 `flagos-2026-s2` 提交唯一阶段收口 PR；
+- 禁止直接向 `flagos-2026-s2`、`phase6/integration` 或 `phase6/release-candidate` 提交；
+- 禁止共享分支 force-push、变基改写历史或把未验收提交标成最终版本；
+- 每个 PR 必须写明任务编号、交付物路径、验证命令、实际结果、遗留问题和评审人。
+
+#### 个人任务一：周邦翔——最终 Benchmark 与质量回归
+
+- **任务分支**：`task/zhou-s6-validation`
+- **个人职责**：数据与平台工程、正式测量、回归和结果登记；不负责决定是否新增核心优化机制。
+
+**个人任务**
+
+- **S6-Z01：建立最终测量矩阵。** 从 `phase6/release-candidate` 检出候选，按 Baseline、单项 A、单项 B、组合 A+B 建立矩阵；每次记录平台、提交号、FlagGems 版本、命令、运行时间和原始结果路径。
+- **S6-Z02：执行四个平台-场景组合。** 在天数 BI-V150 和沐曦 C500 上分别执行 4k `[4096,1024,64,256]` 与 16k `[16384,1024,64,128]`，每个组合至少 3 次有效重复，计算中位数、极差、变异系数。
+- **S6-Z03：执行正确性与服务回归。** 运行 API 冒烟、MATH-500 Level 3、请求完成率、超时、异常日志、OOM 和连续多轮稳定性检查。
+- **S6-Z04：锁定性能结论。** 只允许使用锁定 CSV/JSON 计算 `total tokens/s`、Output tok/s、duration、Mean/P50/P99 TTFT、TPOT、ITL、峰值显存和失败请求；不得只提交最好一次结果。
+
+**个人交付物**
+
+- `docs/evidence/phase-6/zhou-validation/measurement-matrix.md`；
+- `docs/evidence/phase-6/zhou-validation/performance-results.csv`；
+- `docs/evidence/phase-6/zhou-validation/final-regression-report.md`；
+- `docs/evidence/phase-6/zhou-validation/commands-and-environment.md`；
+- 原始日志、CSV 和评测目录的外部路径与 SHA256 校验值。
+
+**允许修改**
+
+- `scripts/competition/` 下的环境登记、结果解析和校验脚本；
+- `docs/evidence/phase-6/zhou-validation/` 下的记录；
+- 与测试结果格式相关的非核心测试工具。
+
+**禁止修改**
+
+- 禁止修改官方 Benchmark 的输入长度、输出长度、并发、请求数和指标算法；
+- 禁止为“跑出更高分”修改核心调度、算子或模型行为；
+- 禁止删除失败请求、OOM、超时或异常结果；
+- 禁止把未完成的硬件测试写成已通过。
+
+**验收标准**
+
+- 四个平台-场景组合均有至少 3 次有效结果；
+- `accuracy >= 0.95`；
 - 最终宣称的提升超过 1% 正常波动；
-- TTFT 满足官方限制，无失败请求和 OOM；
-- 每个最终改动都有单项或消融证据；
-- 从新环境按文档可重跑至少一轮完整链路。
+- TTFT 在官方允许范围内，无失败请求和 OOM；
+- 另一名成员能按记录中的命令复核 CSV 与结论。
 
-闭环：S6 锁定最终提交提交号、结果表和图表；之后进入代码冻结，S7 不再增加新性能机制。
+#### 个人任务二：陈梓弘——候选集成与消融收口
+
+- **任务分支**：`task/chen-s6-integration`
+- **个人职责**：项目负责人、候选组合与范围收口；负责决定哪些已验收候选进入最终版本，不单独批准自己的高风险改动。
+
+**个人任务**
+
+- **S6-C01：创建阶段分支。** 从最新 `flagos-2026-s2` 创建 `phase6/integration`，再创建 `phase6/release-candidate`，在本 Issue 记录远程分支链接和起始提交。
+- **S6-C02：逐项合并候选。** 只合并 S3-S5 已通过单项门禁的提交；每次合并记录候选名称、提交号、依赖、回退方式和预期影响。
+- **S6-C03：组织消融矩阵。** 至少形成 Baseline、A、B、A+B 或等价组合，明确每个组合启用的改动，禁止一次合入无法拆解的“大杂烩”提交。
+- **S6-C04：完成最终范围锁定。** 对每个候选标记保留、回退或诊断-only，形成最终提交号、改动清单、平台差异和已知限制。
+- **S6-C05：提交小组汇总 PR。** 将 `phase6/release-candidate` 合并到 `phase6/integration`，附上个人任务 PR、周邦翔结果报告、朱健辉证据索引和遗留问题。
+
+**个人交付物**
+
+- `docs/evidence/phase-6/chen-integration/candidate-lock.md`；
+- `docs/evidence/phase-6/chen-integration/ablation-matrix.md`；
+- `docs/evidence/phase-6/chen-integration/final-commit-lock.md`；
+- `docs/evidence/phase-6/chen-integration/known-limitations.md`；
+- 小组汇总 PR 和阶段收口 PR 链接。
+
+**允许修改**
+
+- 已在 S3-S5 通过门禁的 `vllm_fl/` 核心代码；
+- 候选组合的配置、回退开关和集成测试；
+- `docs/evidence/phase-6/chen-integration/` 下的收口记录。
+
+**禁止修改**
+
+- 禁止在 S6 新增未经过 S2 profiler 和单项门禁的性能机制；
+- 禁止修改模型权重、采样行为、量化/投机采样设置或官方 Benchmark 口径；
+- 禁止为了让消融“好看”删除负结果；
+- 禁止跳过第二成员 Review 直接向阶段集成分支合并。
+
+**验收标准**
+
+- 每个最终改动均可追溯到单项 PR、测试和结果；
+- 消融矩阵能解释组合收益或相互抵消；
+- 最终组合在两平台、两场景无未解释退化；
+- 最终提交不包含未验收功能和无关临时文件；
+- 阶段汇总 PR 通过周邦翔和朱健辉交叉检查。
+
+#### 个人任务三：朱健辉——结果可视化与证据索引
+
+- **任务分支**：`task/zhu-s6-evidence`
+- **个人职责**：锁定结果整理、对比图、证据索引和展示材料；不承担调度器、KV Cache 或底层算子开发。
+
+**个人任务**
+
+- **S6-H01：建立结果输入清单。** 只接收周邦翔确认过的 CSV/JSON 和陈梓弘确认过的提交号，记录数据源、生成命令和文件校验值。
+- **S6-H02：生成双平台对比图。** 生成 4k/16k 的基线-单项-组合 `total tokens/s`、TTFT 和显存对比图；图中保留单位、场景、平台、重复次数和统计口径。
+- **S6-H03：建立证据索引。** 把每张图、每个表、每个结论链接到提交号、实验编号、原始 CSV/JSON、日志路径和验证人。
+- **S6-H04：准备答辩结果页。** 只从锁定数据生成 1 页结果摘要和 1 页失败/限制说明，不把计划中能力写成已完成。
+
+**个人交付物**
+
+- `docs/evidence/phase-6/zhu-evidence/figure-source.csv`；
+- `docs/evidence/phase-6/zhu-evidence/throughput-comparison.png`；
+- `docs/evidence/phase-6/zhu-evidence/latency-and-memory-comparison.png`；
+- `docs/evidence/phase-6/zhu-evidence/evidence-index.md`；
+- `docs/evidence/phase-6/zhu-evidence/presentation-result-summary.md`。
+
+**允许修改**
+
+- `scripts/competition/visualize_results.py` 或同等结果可视化脚本；
+- `docs/evidence/phase-6/zhu-evidence/` 下的图表和索引；
+- 与图表展示相关的 Markdown 文档。
+
+**禁止修改**
+
+- 禁止手工改写 CSV、JSON、数值、坐标、误差线或图例；
+- 禁止使用未锁定实验、单次最好结果或截图作为正式结论；
+- 禁止修改 `vllm_fl/` 调度、KV Cache、算子和平台核心代码；
+- 禁止将个人材料、模型、数据集和大型原始日志提交仓库。
+
+**验收标准**
+
+- 每张图可由仓库脚本从锁定数据重新生成；
+- 图表数值与周邦翔的最终 CSV 一致；
+- 每个结论都能沿证据索引回到提交号和原始结果；
+- 图中明确区分基线、单项优化、组合优化和未测项；
+- 陈梓弘和周邦翔完成图表数值交叉检查。
+
+#### 小组共同任务
+
+- **S6-G01：完整彩排。** 三人从 `phase6/integration` 检出，完成服务启动、简单请求、正式 Benchmark、精度评测、结果生成和证据索引；交付 `docs/evidence/phase-6/group/final-rehearsal-report.md`。
+- **S6-G02：发布候选检查。** 陈梓弘确认范围，周邦翔确认测试，朱健辉确认图表和证据；交付 `docs/evidence/phase-6/group/release-candidate-checklist.md`。
+- **S6-G03：阶段交接。** 记录最终提交号、结果文件、未关闭问题、S7 接收人和下一步；交付 `docs/evidence/phase-6/group/handoff.md`。
+
+#### 本阶段不做
+
+- 不新增未经证据支持的性能机制；
+- 不修改模型行为、量化、投机采样或 Benchmark 口径；
+- 不把单次最佳结果当作最终成绩；
+- 不删除失败测试、OOM、超时、精度下降或不支持平台记录；
+- 不把计划、截图、口头说明冒充代码、测试或复现证据。
+
+#### S6 单周关闭门禁
+
+- 三名成员均完成个人任务 PR，且每个 PR 有交付物、验证命令、实际结果和交叉 Review；
+- `phase6/release-candidate` 已汇总到 `phase6/integration`；
+- 两平台四场景的最终结果、精度、TTFT、显存和失败请求已锁定；
+- 结果图表可由脚本重生成，证据索引完整；
+- 所有遗留项均登记 Owner、影响、依赖、下一步和截止时间；
+- 陈梓弘确认范围与最终提交，周邦翔确认质量与测试，朱健辉确认结果证据；
+- 未达到以上条件不得关闭 Issue #7，不得进入 S7 最终交付。
+
+#### S6 交付包
+
+```text
+docs/evidence/phase-6/
+├── zhou-validation/
+│   ├── measurement-matrix.md
+│   ├── performance-results.csv
+│   ├── final-regression-report.md
+│   └── commands-and-environment.md
+├── chen-integration/
+│   ├── candidate-lock.md
+│   ├── ablation-matrix.md
+│   ├── final-commit-lock.md
+│   └── known-limitations.md
+├── zhu-evidence/
+│   ├── figure-source.csv
+│   ├── throughput-comparison.png
+│   ├── latency-and-memory-comparison.png
+│   ├── evidence-index.md
+│   └── presentation-result-summary.md
+└── group/
+    ├── final-rehearsal-report.md
+    ├── release-candidate-checklist.md
+    └── handoff.md
+```
+
+闭环：个人任务 PR → `phase6/release-candidate` → `phase6/integration` → `flagos-2026-s2`；S6 的最终提交、结果表和证据索引直接作为 S7 技术报告、README 和提交包的输入。
 
 ### S7：技术报告、README、提交包与复现演练
 
