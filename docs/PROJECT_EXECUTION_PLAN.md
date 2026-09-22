@@ -71,6 +71,8 @@
 
 ### 3.3 标准工作流
 
+组员首次加入、每日拉取、任务分支、提交、Push、PR、冲突处理和收工步骤，统一参见 [TEAM_WORKFLOW.md](./TEAM_WORKFLOW.md)。以下为最简流程摘要。
+
 ```bash
 git switch flagos-2026-s2
 git pull --ff-only origin flagos-2026-s2
