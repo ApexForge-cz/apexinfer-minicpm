@@ -88,7 +88,11 @@ git config --global user.email
 git clone https://github.com/ApexForge-cz/apexinfer-minicpm.git
 cd apexinfer-minicpm
 git switch flagos-2026-s2
+git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+git fetch origin --prune
 ```
+
+第四条命令用于确保本地能看到 `phaseN/integration`、`phaseN/release-candidate` 和其他成员的远程分支。部分已有仓库只抓取 `flagos-2026-s2`，如果不执行该配置，即使 GitHub 上已经创建 Phase 分支，本地仍会显示“分支不存在”。此配置只改变下载哪些远程分支，不会改动工作区文件。
 
 添加官方只读远程：
 
@@ -150,11 +154,13 @@ git status --short --branch
 ### 3.2 获取远端最新状态
 
 ```powershell
+git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
 git fetch origin --prune
 git fetch upstream --prune
+git branch -r
 ```
 
-`fetch` 只下载远端状态，不会覆盖本地文件。
+`fetch` 只下载远端状态，不会覆盖本地文件。正常情况下，`git branch -r` 应能看到当前阶段的 `origin/phaseN/integration` 和 `origin/phaseN/release-candidate`；看不到时先检查 Issue 中的远程链接，再联系阶段负责人。
 
 ### 3.3 查看自己的 Issue
 
